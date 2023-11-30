@@ -11,12 +11,16 @@ exports.sendSMSMessage = async function (payload, cancellationLink){
         "template_id": process.env.GC_NOTIFY_SMS_TEMPLATE_ID,
         "personalisation": {
           "name": `${payload.firstName} ${payload.lastName}`,
+          "passType": payload.type,
           "parkName": payload.parkName,
           "facilityName": payload.facilityName,
-          "npassType": payload.type,
-          "cancellationLink": cancellationLink
+          "cancellationLink": cancellationLink,
         }
       };
+
+      console.log('Payload:', payload);
+console.log('Template ID:', process.env.GC_NOTIFY_SMS_TEMPLATE_ID);
+console.log('GCNSENDOBJ:', gcnSendObj);
       const res = await gcnSend(process.env.GC_NOTIFY_API_SMS_PATH, process.env.GC_NOTIFY_API_KEY, gcnSendObj);
       if (res.errors) {
         resData = res?.data?.response?.data;
