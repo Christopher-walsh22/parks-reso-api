@@ -29,6 +29,7 @@ functions:
         - lambda/captcha/**
         - node_modules/**
         - lambda/*.js
+    timeout: 45
     events:
       - http:
           method: POST
@@ -41,6 +42,7 @@ functions:
         - lambda/captcha/**
         - node_modules/**
         - lambda/*.js
+    timeout: 45
     events:
       - http:
           method: POST
@@ -53,6 +55,7 @@ functions:
         - lambda/captcha/**
         - node_modules/**
         - lambda/*.js
+    timeout: 45
     events:
       - http:
           method: POST
@@ -65,6 +68,7 @@ functions:
         - lambda/cloudwatchAlarm/**
         - node_modules/**
         - lambda/*.js
+    timeout: 45
 
   ###########
   # config
@@ -76,6 +80,7 @@ functions:
         - lambda/readConfig/**
         - node_modules/**
         - lambda/*.js
+    timeout: 45
     events:
       - http:
           method: GET
@@ -88,6 +93,7 @@ functions:
         - lambda/writeConfig/**
         - node_modules/**
         - lambda/*.js
+    timeout: 45
     events:
       - http:
           method: POST
@@ -104,6 +110,7 @@ functions:
         - lambda/readPark/**
         - node_modules/**
         - lambda/*.js
+    timeout: 75
     events:
       - http:
           method: GET
@@ -116,6 +123,7 @@ functions:
         - lambda/writePark/**
         - node_modules/**
         - lambda/*.js
+    timeout: 45
     events:
       - http:
           method: POST
@@ -136,6 +144,7 @@ functions:
         - lambda/readFacility/**
         - node_modules/**
         - lambda/*.js
+    timeout: 45
     events:
       - http:
           method: GET
@@ -148,6 +157,7 @@ functions:
         - lambda/writeFacility/**
         - node_modules/**
         - lambda/*.js
+    timeout: 45
     events:
       - http:
           method: POST
@@ -168,6 +178,7 @@ functions:
         - lambda/readReservation/**
         - node_modules/**
         - lambda/*.js
+    timeout: 45
     events:
       - http:
           method: GET
@@ -184,6 +195,7 @@ functions:
         - lambda/writeModifier/**
         - node_modules/**
         - lambda/*.js
+    timeout: 45
     events:
       - http:
           method: PUT
@@ -200,6 +212,7 @@ functions:
         - lambda/readPass/**
         - node_modules/**
         - lambda/*.js
+    timeout: 45
     events:
       - http:
           method: GET
@@ -212,6 +225,7 @@ functions:
         - lambda/writePass/**
         - node_modules/**
         - lambda/*.js
+    timeout: 45
     events:
       - http:
           method: POST
@@ -224,6 +238,7 @@ functions:
         - lambda/writePass/**
         - node_modules/**
         - lambda/*.js
+    timeout: 45
     events:
       - http:
           method: PUT
@@ -236,6 +251,7 @@ functions:
         - lambda/deletePass/**
         - node_modules/**
         - lambda/*.js
+    timeout: 45
     events:
       - http:
           method: DELETE
@@ -252,6 +268,7 @@ functions:
         - lambda/sqsProcessor/**
         - node_modules/**
         - lambda/*.js
+    timeout: 45
 
   ###########
   # Export
@@ -263,6 +280,7 @@ functions:
         - lambda/exportPass/**
         - node_modules/**
         - lambda/*.js
+    timeout: 45
     events:
       - http:
           method: GET
@@ -300,6 +318,7 @@ functions:
         - lambda/metric/**
         - node_modules/**
         - lambda/*.js
+    timeout: 45
     events:
       - http:
           method: GET
@@ -316,10 +335,42 @@ functions:
         - lambda/readMetrics/**
         - node_modules/**
         - lambda/*.js
+    timeout: 45
+    events:
+      - http:
+          path: /metrics
+          method: GET
+          cors: true
+
+   ###########
+  # FAQ
+  ###########
+  readFaq:
+    handler: lambda/readFaq/index.handler
+    package:
+      include:
+        - lambda/readFaq/**
+        - node_modules/**
+        - lambda/*.js
+    timeout: 45
     events:
       - http:
           method: GET
-          path: /metrics
+          path: /readfaq
+          cors: true
+  
+  writeFaq:
+    handler: lambda/writeFaq/index.handler
+    package:
+      include:
+        - lambda/readFaq/**
+        - node_modules/**
+        - lambda/*.js
+    timeout: 45
+    events:
+      - http:
+          method: PUT
+          path: /writefaq
           cors: true
 
   ###########
@@ -350,6 +401,7 @@ functions:
         - lambda/*.js
   # aws lambda invoke /dev/null --endpoint-url http://localhost:3002 --function-name parks-reso-api-api-sendReminder
   sendReminder:
+    timeout: 45
     handler: lambda/sendReminder/index.handler
     package:
       include:
