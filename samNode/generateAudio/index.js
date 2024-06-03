@@ -1,5 +1,5 @@
 const { sendResponse } = require('/opt/baseLayer');
-const { getCaptchaAudio } = require('/opt/captchaLauer')
+const { getCaptchaAudio } = require('/opt/captchaLayer')
 
 exports.handler = async (event, context) => {
     try {

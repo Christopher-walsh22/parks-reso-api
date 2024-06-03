@@ -5,13 +5,12 @@ const INVALID_TOKEN = {
         decoded: false,
         data: null
       };
-const { runQuery, TABLE_NAME, logger } = require('/opt/baseLayer');
+const { runQuery, TABLE_NAME, dynamodb, logger } = require('/opt/baseLayer');
 const jwt = require('jsonwebtoken');
 const jwksClient = require('jwks-rsa');
 
 exports.decodeJWT = async function (event) {
   const token = event.headers.Authorization;
-
   let decoded = null;
   try {
     decoded = await new Promise(function (resolve) {
@@ -46,25 +45,68 @@ exports.decodeJWT = async function (event) {
     return INVALID_TOKEN;
   }
 };
-
+exports.getExpiryTime = function (token) {
+  try {
+    // grab the public stuff from jwt
+    const decodedJWT = jwt.decode(token);
+    if (decodedJWT && decodedJWT.iat) {
+      const expiryTime = decodedJWT.exp;
+      //Return the unix value of the epiry
+      return expiryTime;
+    } else {
+      // If no created time return false 
+      return { decoded: false };
+    }
+  } catch (e) {
+    // Return if cant decode 
+    return { decoded: false };
+  }
+};
+exports.verifyHoldToken = function (token, secret) {
+  console.log("verifyHoldToken", token, secret);
+  let decodedToken;
+  try {
+    decodedToken = jwt.verify(token, secret);
+    if (!decodedToken) {
+      throw new CustomError('Invalid token', 400);
+    }
+  } catch (error) {
+    if (error.name === 'TokenExpiredError') {
+      throw new CustomError('Token has expired', 400);
+    } else {
+      throw new CustomError('Invalid token', 400);
+    }
+  }
+  return decodedToken;
+};
+exports.deleteHoldToken = async function (token) {
+  try {
+    await dynamodb.deleteItem({
+      Key: {
+        pk: { S: 'jwt' },
+        sk: { S: token }
+      },
+      TableName: TABLE_NAME
+    }).promise();
+  } catch (error) {
+    // Handle the error here
+    logger.error('Error deleting hold token:');
+    logger.debug(error);
+  }
+};
 const verifyToken = function (token, callback, sendError) {
   logger.debug('verifying token');
   logger.debug('token:', token);
-
   // validate the 'Authorization' header. it should have the following format: `Bearer tokenString`
   if (token && token.indexOf('Bearer ') == 0) {
     let tokenString = token.split(' ')[1];
-
     logger.debug('Remote JWT verification');
-
     // Get the SSO_JWKSURI and process accordingly.
     const client = jwksClient({
       strictSsl: true, // Default value
       jwksUri: SSO_JWKSURI
     });
-
     const kid = jwt.decode(tokenString, { complete: true }).header.kid;
-
     client.getSigningKey(kid, (err, key) => {
       if (err) {
         logger.debug('Signing Key Error:', err);
@@ -79,25 +121,18 @@ const verifyToken = function (token, callback, sendError) {
     return callback(sendError());
   }
 };
-
 function verifySecret(tokenString, secret, callback, sendError) {
   jwt.verify(tokenString, secret, function (verificationError, decodedToken) {
     // check if the JWT was verified correctly
     if (verificationError == null && decodedToken && decodedToken.resource_access["parking-pass"].roles) {
       logger.debug('JWT decoded');
-
       logger.debug('decoded token:', decodedToken);
-
       logger.debug('decodedToken.iss', decodedToken.iss);
       logger.debug('decodedToken roles', decodedToken.resource_access["parking-pass"].roles);
-
       logger.debug('SSO_ISSUER', SSO_ISSUER);
-
       // check if the dissuer matches
       let issuerMatch = decodedToken.iss == SSO_ISSUER;
-
       logger.debug('issuerMatch', issuerMatch);
-
       if (issuerMatch) {
         logger.debug('JWT Verified');
         return callback(decodedToken);
@@ -112,7 +147,6 @@ function verifySecret(tokenString, secret, callback, sendError) {
     }
   });
 }
-
 async function roleFilter(records, roles) {
   return new Promise(async (resolve) => {
     const data = records.filter(record => {
@@ -123,46 +157,40 @@ async function roleFilter(records, roles) {
       } else {
         return false;
       }
-    })
+    });
     resolve(data);
-  })
+  });
 };
 exports.roleFilter = roleFilter;
-
-exports.resolvePermissions = function(token) {
+exports.resolvePermissions = function (token) {
   let roles = ['public'];
   let isAdmin = false;
   let isAuthenticated = false;
-
   try {
     logger.debug(JSON.stringify(token.data));
     roles = token.data.resource_access['parking-pass'].roles;
     // If we get here, they have authenticated and have some roles in the parking-pass client.  Treat them as
     // an admin of some sort
     isAuthenticated = true;
-
-    logger.debug(JSON.stringify(roles))
+    logger.debug(JSON.stringify(roles));
     if (roles.includes('sysadmin')) {
-      logger.debug("ISADMIN")
+      logger.debug("ISADMIN");
       isAdmin = true;
     }
   } catch (e) {
     // Fall through, assume public.
     logger.debug(e);
   }
-
   return {
     roles: roles,
     isAdmin: isAdmin,
     isAuthenticated: isAuthenticated
-  }
-}
-
+  };
+};
 exports.getParkAccess = async function getParkAccess(park, permissionObject) {
   let queryObj = {
     TableName: TABLE_NAME
   };
-
   queryObj.ExpressionAttributeValues = {
     ':pk': { S: 'park' },
     ':sk': { S: park }
@@ -177,4 +205,25 @@ exports.getParkAccess = async function getParkAccess(park, permissionObject) {
     // They are not authorized.
     throw { msg: "Unauthorized Access." };
   }
-}
+};
+exports.validateToken = async function (token) {
+  // Validate the token by calling the
+  // "/siteverify" API endpoint.
+  const body = JSON.stringify({
+    secret: CF_SECRET_KEY,
+    response: token
+  });
+  const url = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
+  const res = await axios({
+    method: 'post',
+    url: url,
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    data: body
+  });
+  logger.debug(res.data);
+  if (!res.status == 200) {
+    throw new CustomError('Invalid token.', 400);
+  }
+};

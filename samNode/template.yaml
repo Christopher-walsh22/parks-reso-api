@@ -145,6 +145,19 @@ Globals:
 Resources:
 
   ###LAYERS###
+  JWTLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: JWTLayer
+      Description: Utilities JWT Layer
+      ContentUri: layers/jwtLayer/
+      CompatibleRuntimes:
+        - nodejs18.x
+      LicenseInfo: 'Apache-2.0'
+      RetentionPolicy: Retain
+    Metadata:
+      BuildMethod: makefile
+
   BaseLayer:
     Type: AWS::Serverless::LayerVersion
     Properties:
@@ -384,6 +397,15 @@ Resources:
           - !Ref CaptchaLayer
           - !Ref BaseLayer
 
+  
+  purgeExpired:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: purgeExpired/
+      Handler: index.handler
+      Runtime: nodejs18.x
+      Layers:
+          - !Ref BaseLayer
 
   warmupFunction:
     Type: AWS::Serverless::Function
