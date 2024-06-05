@@ -1,6 +1,6 @@
 const { runQuery, TABLE_NAME, DEFAULT_BOOKING_DAYS_AHEAD, TIMEZONE, getPark, getFacility, sendResponse, logger } = require('/opt/baseLayer');
 const { formatPublicReservationObject } = require('/opt/reservationUtil')
-const { decodeJWT, resolvePermissions, roleFilter } = require('/opt/permissionUtil');
+const { decodeJWT, resolvePermissions, roleFilter } = require('/opt/permissionLayer');
 const { DateTime } = require('luxon');
 
 exports.handler = async (event, context) => {

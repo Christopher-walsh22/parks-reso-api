@@ -1,5 +1,5 @@
 const { runQuery, TABLE_NAME, logger, sendResponse, checkWarmup } = require('/opt/baseLayer');
-const { decodeJWT, resolvePermissions, getParkAccess } = require('/opt/permissionUtil');
+const { getParkAccess } = require('/opt/permissionLayer');
 
 exports.handler = async (event, context) => {
   logger.debug('Read Facility', event);
@@ -11,8 +11,8 @@ exports.handler = async (event, context) => {
     TableName: TABLE_NAME
   };
 
-  const token = await decodeJWT(event);
-  const permissionObject = resolvePermissions(token);
+  const permissionObject = event.requestContext.authorizer;
+  permissionObject.role = JSON.parse(permissionObject.role);
 
   try {
     if (!event.queryStringParameters) {

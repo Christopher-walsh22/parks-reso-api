@@ -1,10 +1,7 @@
 const AWS = require('aws-sdk');
 const s3 = new AWS.S3();
 const csvjson = require('csvjson');
-const { runQuery, TIMEZONE, sendResponse, logger } = require('/opt/baseLayer');
-const { decodeJWT, resolvePermissions } = require('/opt/permissionUtil');
-const { DateTime } = require('luxon');
-
+const { runQuery, sendResponse, logger } = require('/opt/baseLayer');
 
 exports.handler = async (event, context) => {
   logger.debug('Export Pass', event);
@@ -21,8 +18,8 @@ exports.handler = async (event, context) => {
     }
     if (event.queryStringParameters.facilityName && event.queryStringParameters.park) {
 
-      const token = await decodeJWT(event);
-      const permissionObject = resolvePermissions(token);
+      const permissionObject = event.requestContext.authorizer;
+      permissionObject.role = JSON.parse(permissionObject.role);
       if (permissionObject.isAdmin !== true) {
         logger.info("Unauthorized");
         return sendResponse(403, { msg: 'Unauthorized' });

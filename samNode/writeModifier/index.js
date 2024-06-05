@@ -1,5 +1,5 @@
 const { sendResponse, logger } = require('/opt/baseLayer');
-const { decodeJWT, resolvePermissions, getParkAccess } = require('/opt/permissionUtil');
+const { getParkAccess } = require('/opt/permissionLayer');
 const { setFacilityLock, unlockFacility } = require('/opt/facilityUtil');
 const { createNewReservationsObj } = require('/opt/reservationUtil');
 const { processReservationObjects, getReservationObject } = require('/opt/reservationUtil');
@@ -28,8 +28,8 @@ exports.handler = async (event, context) => {
     return sendResponse(405, { msg: 'Not Implemented' }, context);
   }
 
-  const token = await decodeJWT(event);
-  const permissionObject = resolvePermissions(token);
+  const permissionObject = event.requestContext.authorizer;
+  permissionObject.role = JSON.parse(permissionObject.role);
 
   if (permissionObject.isAuthenticated !== true) {
     logger.info('Unauthorized');

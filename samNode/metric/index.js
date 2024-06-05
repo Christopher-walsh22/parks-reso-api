@@ -1,6 +1,6 @@
 const AWS = require('aws-sdk');
 const { getPassesByStatus, TABLE_NAME, sendResponse, logger } = require('/opt/baseLayer');
-const { decodeJWT, resolvePermissions } = require('/opt/permissionUtil');
+const { decodeJWT, resolvePermissions } = require('/opt/permissionLayer');
 
 
 exports.handler = async (event, context) => {

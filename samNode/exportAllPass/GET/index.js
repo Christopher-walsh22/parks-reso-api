@@ -6,18 +6,18 @@ const IS_OFFLINE = process.env.IS_OFFLINE && process.env.IS_OFFLINE === "true" ?
 const options = {};
 const dboptions = {};
 if (IS_OFFLINE) {
-  options.region = "local-env";
+  options.region = "local";
   // For local we use port 3002 because we're hitting an invokable
   options.endpoint = "http://localhost:3002";
 }
 const lambda = new AWS.Lambda(options);
 if (process.env.IS_OFFLINE) {
-  dboptions.endpoint = 'http://localhost:8000';
+  dboptions.endpoint = 'http://host.docker.internal:8000';
 }
 const dynamodb = new AWS.DynamoDB(dboptions);
 
 const { runQuery, TABLE_NAME, sendResponse, checkWarmup, logger } = require('/opt/baseLayer');
-const { decodeJWT, resolvePermissions } = require('opt/permissionUtil');
+const { decodeJWT, resolvePermissions } = require('/opt/permissionLayer');
 const { convertRolesToMD5 } = require('/opt/exportAllPassUtil');
 
 const EXPORT_FUNCTION_NAME =

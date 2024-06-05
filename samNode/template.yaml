@@ -13,6 +13,9 @@ Parameters:
   #DataRegistryURL:
   #  Type: String
   #  Default: 'getFromDev?'
+  Stage:
+    Type: String
+    Default: 'dev'
   AWSAccountList:
     Type: String
     Default: 'default'
@@ -36,7 +39,7 @@ Parameters:
     Default: "DUP_EXPORT"
   TableName:
     Type: String
-    Default: parksRESo
+    Default: parksreso
   S3BucketData:
     Type: String
     Default: "Bucket"
@@ -48,7 +51,7 @@ Parameters:
     Default: 'Default_Secret'
   PrivateKey:
     Type: String
-    Default: 'DEfaultKey'
+    Default: 'DefaultKey'
   PublicFrontend:
     Type: String
     Default: "Public FrontEnd"
@@ -111,10 +114,10 @@ Parameters:
     Default: "String"
   SSOIssuer:
     Type: String
-    Default: 'String'
+    Default: 'https://dev.loginproxy.gov.bc.ca/auth/realms/bcparks-service-transformation'
   SSOJWKSUri:
     Type: String
-    Default: 'String'
+    Default: 'https://dev.loginproxy.gov.bc.ca/auth/realms/bcparks-service-transformation/protocol/openid-connect/certs'
   LowCapacityThreshold:
     Type: String
     Default: '0.25'
@@ -134,13 +137,12 @@ Parameters:
     Type: String
     Default: 'SSSSSS'
   
-      
 Globals:
-    Api:
-        Cors:
-            AllowMethods: "'POST,GET,OPTIONS, PUT'"
-            AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-App-Version'"
-            AllowOrigin: "'*'"
+  Api:
+    Cors:
+      AllowMethods: "'POST,GET,OPTIONS, PUT'"
+      AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-App-Version'"
+      AllowOrigin: "'*'"
 
 Resources:
 
@@ -210,7 +212,6 @@ Resources:
     Metadata:
       BuildMethod: makefile
 
-
   FacilityLayer:
     Type: AWS::Serverless::LayerVersion
     Properties:
@@ -230,19 +231,6 @@ Resources:
       LayerName: passLayer
       Description: Pass Utilities Layer
       ContentUri: layers/passUtil/
-      CompatibleRuntimes:
-        - nodejs18.x
-      LicenseInfo: 'Apache-2.0'
-      RetentionPolicy: Retain
-    Metadata:
-      BuildMethod: makefile
-
-  CaptchaLayer:
-    Type: AWS::Serverless::LayerVersion
-    Properties:
-      LayerName: captchaLayer
-      Description: Captcha Utilities Layer
-      ContentUri: layers/captchaLayer/
       CompatibleRuntimes:
         - nodejs18.x
       LicenseInfo: 'Apache-2.0'
@@ -367,8 +355,6 @@ Resources:
     Metadata:
       BuildMethod: makefile
 
-  
-  
   ###FUNCTIONS###
   sendSurvey:
     Type: AWS::Serverless::Function
@@ -392,11 +378,9 @@ Resources:
           JWT_SIGN_EXPIRY: !Ref JWTSignExpiry
           PRIVATE_KEY: !Ref PrivateKey
           AWS_DEFAULT_REGION: !Ref AWSDefaultRegion
-          ALGORITH: !Ref Algorithm
+          ALGORITHM: !Ref Algorithm
       Layers:
-          - !Ref CaptchaLayer
           - !Ref BaseLayer
-
   
   purgeExpired:
     Type: AWS::Serverless::Function
@@ -422,89 +406,8 @@ Resources:
           ALGORITHM: !Ref Algorithm
           LOG_LEVEL: !Ref LogLevel
       Layers:
-          - !Ref CaptchaLayer
           - !Ref ResponseLayer
           - !Ref LoggerLayer     
-
-
-  generateCaptchaAudio:
-    Type: AWS::Serverless::Function
-    Properties:
-      Environment: 
-        Variables:
-          METRICS_TABLE_NAME: !Ref MetricsTableName
-          META_TABLE_NAME: !Ref MetaTableName
-          LOG_LEVEL: !Ref LogLevel
-          JWT_SECRET: !Ref JWTSecret
-          JWT_SIGN_EXPIRY: !Ref JWTSignExpiry
-          PRIVATE_KEY: !Ref PrivateKey
-          AWS_DEFAULT_REGION: !Ref AWSDefaultRegion
-          ALGORITH: !Ref Algorithm
-      CodeUri: generateAudio/
-      Timeout: 60
-      Handler: index.handler
-      Runtime: nodejs18.x
-      Layers:
-          - !Ref BaseLayer
-          - !Ref CaptchaLayer      
-      Events:
-        verifyCaptcha:
-          Type: Api
-          Properties:
-            Path: /captcha/audio
-            Method: post
-
-  verifyCaptcha:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: verifyCaptcha/
-      Environment:
-        Variables:
-          METRICS_TABLE_NAME: !Ref MetricsTableName
-          META_TABLE_NAME: !Ref MetaTableName
-          LOG_LEVEL: !Ref LogLevel
-      Handler: index.handler
-      Timeout: 60
-      Runtime: nodejs18.x
-      Layers:
-          - !Ref BaseLayer      
-      Events:
-        verifyCaptcha:
-          Type: Api
-          Properties:
-            Path: /captcha/verify
-            Method: post
-
-
-  generateCaptcha:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: generateCaptcha/
-      Handler: index.handler
-      Timeout: 60
-      Runtime: nodejs18.x
-      Environment:
-        Variables:
-          PRIVATE_KEY: !Ref PrivateKey
-          JWT_SECRET: !Ref JWTSecret
-          JWT_SIGN_EXPIRY: !Ref JWTSignExpiry
-          ALGORITHM: !Ref Algorithm
-          METRICS_TABLE_NAME: !Ref MetricsTableName
-          META_TABLE_NAME: !Ref MetaTableName
-          LOG_LEVEL: !Ref LogLevel
-          PASS_MANAGEMENT_ROUTE: !Ref PassManagementRoute
-          ADMIN_FRONTEND: !Ref AdminFrontEnd
-
-      Layers:
-          - !Ref BaseLayer
-          - !Ref PassLayer
-      Events:
-        generateCaptcha:
-          Type: Api
-          Properties:
-            Path: /captcha
-            Method: post
-
 
   SQSProcessorFunction:
     Type: AWS::Serverless::Function
@@ -523,7 +426,6 @@ Resources:
       Layers:
           - !Ref BaseLayer         
 
-
   WriteConfigFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -536,10 +438,7 @@ Resources:
           METRICS_TABLE_NAME: !Ref MetricsTableName
           META_TABLE_NAME: !Ref MetaTableName
           LOG_LEVEL: !Ref LogLevel
-          SSO_ISSUER: !Ref SSOIssuer
-          SSO_JWKSURI: !Ref SSOJWKSUri
       Layers:
-          - !Ref PermissionLayer
           - !Ref BaseLayer         
       Events:
         writeConfig:
@@ -547,7 +446,7 @@ Resources:
           Properties:
             Path: /config
             Method: post
-
+            RestApiId: !Ref ApiDeployment
 
   WriteModifierFunction:
     Type: AWS::Serverless::Function
@@ -576,8 +475,7 @@ Resources:
           Properties:
             Path: /modifier
             Method: put
-
-
+            RestApiId: !Ref ApiDeployment
 
   ExportAllPassInvokableFunction:   
     Type: AWS::Serverless::Function
@@ -606,11 +504,8 @@ Resources:
           METRICS_TABLE_NAME: !Ref MetricsTableName
           META_TABLE_NAME: !Ref MetaTableName
           LOG_LEVEL: !Ref LogLevel
-          SSO_ISSUER: !Ref SSOIssuer
-          SSO_JWKSURI: !Ref SSOJWKSUri
       Layers:
           - !Ref BaseLayer
-          - !Ref PermissionLayer
           - !Ref ExportAllPassLayer
       Events:
         exportAllPass:
@@ -618,6 +513,7 @@ Resources:
           Properties:
             Path: /export-all-pass
             Method: get
+            RestApiId: !Ref ApiDeployment
 
   CloudWatchFunction:
       Type: AWS::Serverless::Function
@@ -755,7 +651,6 @@ Resources:
             Path: /facility
             Method: put
 
-
 ############
   PutPassFunction:
       Type: AWS::Serverless::Function
@@ -778,7 +673,7 @@ Resources:
             JWT_SIGN_EXPIRY: !Ref JWTSignExpiry
             PRIVATE_KEY: !Ref PrivateKey
             AWS_DEFAULT_REGION: !Ref AWSDefaultRegion
-            ALGORITH: !Ref Algorithm
+            ALGORITHM: !Ref Algorithm
             SQSQUEUENAME: !Ref SqsQueueName
             AWS_REGION: !Ref AWSRegion
             SSO_ISSUER: !Ref SSOIssuer
@@ -786,7 +681,6 @@ Resources:
             MODERATE_CAPACITY_THRESHOLD: !Ref ModerateCapacityThreshold
             LOW_CAPACITY_THRESHOLD: !Ref LowCapacityThreshold
         Layers:
-          - !Ref CaptchaLayer
           - !Ref PassLayer
           - !Ref SQSLayer
           - !Ref ReservationLayer
@@ -819,7 +713,7 @@ Resources:
             JWT_SIGN_EXPIRY: !Ref JWTSignExpiry
             PRIVATE_KEY: !Ref PrivateKey
             AWS_DEFAULT_REGION: !Ref AWSDefaultRegion
-            ALGORITH: !Ref Algorithm
+            ALGORITHM: !Ref Algorithm
             SQSQUEUENAME: !Ref SqsQueueName
             AWS_REGION: !Ref AWSRegion
             SSO_ISSUER: !Ref SSOIssuer
@@ -827,7 +721,6 @@ Resources:
             MODERATE_CAPACITY_THRESHOLD: !Ref ModerateCapacityThreshold
             LOW_CAPACITY_THRESHOLD: !Ref LowCapacityThreshold
         Layers:
-          - !Ref CaptchaLayer
           - !Ref PassLayer
           - !Ref SQSLayer
           - !Ref ReservationLayer
@@ -901,56 +794,56 @@ Resources:
               Method: get
 
   ReadMetricsFunction:
-      Type: AWS::Serverless::Function
-      Properties: 
-        CodeUri: readMetrics/
-        Timeout: 60
-        Handler: index.handler
-        Environment:
-          Variables:
-            METRICS_TABLE_NAME: !Ref MetricsTableName
-            META_TABLE_NAME: !Ref MetaTableName
-            LOG_LEVEL: !Ref LogLevel
-            SSO_ISSUER: !Ref SSOIssuer
-            SSO_JWKSURI: !Ref SSOJWKSUri
-        Layers:
-          - !Ref PermissionLayer
-          - !Ref BaseLayer
-        Runtime: nodejs18.x
-        Architectures:
-          - x86_64
-        Events:
-          readMetrics:
-            Type: Api
-            Properties:
-              Path: /metrics
-              Method: get
+    Type: AWS::Serverless::Function
+    Properties: 
+      CodeUri: readMetrics/
+      Timeout: 60
+      Handler: index.handler
+      Environment:
+        Variables:
+          METRICS_TABLE_NAME: !Ref MetricsTableName
+          META_TABLE_NAME: !Ref MetaTableName
+          LOG_LEVEL: !Ref LogLevel
+      Layers:
+        - !Ref BaseLayer
+      Runtime: nodejs18.x
+      Architectures:
+        - x86_64
+      Events:
+        readMetrics:
+          Type: Api
+          Properties:
+            Path: /metric
+            Method: get
+            RestApiId: !Ref ApiDeployment
 #############_ STEP 2
   ReadParkFunction:
-      Type: AWS::Serverless::Function
-      Properties: 
-        CodeUri: readPark/
-        Timeout: 60
-        Handler: index.handler
-        Environment:
-          Variables:
-            METRICS_TABLE_NAME: !Ref MetricsTableName
-            META_TABLE_NAME: !Ref MetaTableName
-            LOG_LEVEL: !Ref LogLevel
-            SSO_ISSUER: !Ref SSOIssuer
-            SSO_JWKSURI: !Ref SSOJWKSUri
-        Layers:
-          - !Ref BaseLayer
-          - !Ref PermissionLayer
-        Runtime: nodejs18.x
-        Architectures:
-          - x86_64
-        Events:
-          readPark:
-            Type: Api
-            Properties:
-              Path: /park
-              Method: get
+    Type: AWS::Serverless::Function
+    Properties: 
+      CodeUri: readPark/
+      Timeout: 60
+      Handler: index.handler
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref TableName
+          METRICS_TABLE_NAME: !Ref MetricsTableName
+          META_TABLE_NAME: !Ref MetaTableName
+          LOG_LEVEL: !Ref LogLevel
+          SSO_ISSUER: !Ref SSOIssuer
+          SSO_JWKSURI: !Ref SSOJWKSUri
+      Layers:
+        - !Ref BaseLayer
+        - !Ref PermissionLayer
+      Runtime: nodejs18.x
+      Architectures:
+        - x86_64
+      Events:
+        readPark:
+          Type: Api
+          Properties:
+            Path: /park
+            Method: get
+            RestApiId: !Ref ApiDeployment
 
   ReadPassFunction:
       Type: AWS::Serverless::Function
@@ -960,7 +853,7 @@ Resources:
         Handler: index.handler
         Environment:
           Variables:
-            ALOGIRTHM: !Ref Algorithm
+            ALGORITHM: !Ref Algorithm
             JWT_SECRET: !Ref JWTSecret
             PUBLIC_FRONTEND: !Ref PublicFrontend
             PASS_CANCELLATION_ROUTE: !Ref PassCancellationRoute
@@ -969,8 +862,6 @@ Resources:
             METRICS_TABLE_NAME: !Ref MetricsTableName
             META_TABLE_NAME: !Ref MetaTableName
             LOG_LEVEL: !Ref LogLevel
-            SSO_ISSUER: !Ref SSOIssuer
-            SSO_JWKSURI: !Ref SSOJWKSUri
         Layers:
           - !Ref PermissionLayer
           - !Ref BaseLayer
@@ -983,6 +874,7 @@ Resources:
             Properties:
               Path: /pass
               Method: get
+              RestApiId: !Ref ApiDeployment
 
   ReadFaqFunction:
     Type: AWS::Serverless::Function
@@ -1069,8 +961,6 @@ Resources:
           METRICS_TABLE_NAME: !Ref MetricsTableName
           META_TABLE_NAME: !Ref MetaTableName
           LOG_LEVEL: !Ref LogLevel
-          SSO_ISSUER: !Ref SSOIssuer
-          SSO_JWKSURI: !Ref SSOJWKSUri
       Layers:
         - !Ref BaseLayer
         - !Ref PermissionLayer
@@ -1083,6 +973,10 @@ Resources:
           Properties:
             Path: /facility
             Method: get
+            RestApiId: !Ref ApiDeployment
+            Auth:
+              Authorizer: NONE
+              OverrideApiAuth: true
   
   ReadReservationFunction:
     Type: AWS::Serverless::Function
@@ -1195,3 +1089,45 @@ Resources:
             Type: Schedule
             Properties:
               Schedule: "cron(0 0 * * ? *)" # Errr night at midnight
+
+  ### AUTHORIZER ###
+  Authorizer:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: authorizer/
+      Handler: index.handler
+      Layers:
+        - !Ref BaseLayer
+        - !Ref PermissionLayer
+      Runtime: nodejs18.x
+      Environment:
+        Variables:
+          LOG_LEVEL: info
+          SSO_ISSUER: !Ref SSOIssuer
+          SSO_JWKSURI: !Ref SSOJWKSUri
+
+  ### API ###
+  ApiDeployment:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: !Ref Stage
+      Cors:
+        AllowMethods: "'POST,GET,OPTIONS,PUT'"
+        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+        AllowOrigin: "'*'"
+        MaxAge: "'600'"
+      Auth:
+        DefaultAuthorizer: KCAuthorizer
+        AddDefaultAuthorizerToCorsPreflight: false
+        Authorizers:
+          KCAuthorizer:
+            FunctionPayloadType: REQUEST
+            FunctionArn: !GetAtt Authorizer.Arn
+            Identity:
+              Headers:
+                - Authorization
+  
+Outputs:
+  ApiDeployment:
+    Description: 'API Gateway endpoint URL for Stage for Config function'
+    Value: !Sub 'https://${ApiDeployment}.execute-api.${AWS::Region}.amazonaws.com/${Stage}/config/'

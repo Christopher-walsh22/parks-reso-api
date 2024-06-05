@@ -1,7 +1,7 @@
 const AWS = require('aws-sdk');
 const { dynamodb, TABLE_NAME, sendResponse, logger } = require('/opt/baseLayer');
 
-const { decodeJWT, resolvePermissions, getParkAccess } = require('/opt/permissionUtil');
+const { decodeJWT, resolvePermissions, getParkAccess } = require('/opt/permissionLayer');
 
 
 exports.handler = async (event, context) => {

@@ -3,7 +3,7 @@ const jwt = require('jsonwebtoken');
 const axios = require('axios');
 
 const { runQuery, TABLE_NAME, expressionBuilder, sendResponse, logger } = require('/opt/baseLayer');
-const { decodeJWT, resolvePermissions, getParkAccess } = require('/opt/permissionUtil');
+const { getParkAccess } = require('/opt/permissionLayer');
 const { DateTime } = require('luxon');
 const ALGORITHM = process.env.ALGORITHM || "HS384";
 
@@ -18,8 +18,8 @@ exports.handler = async (event, context) => {
       return sendResponse(400, { msg: 'Invalid Request' }, context);
     }
 
-    const token = await decodeJWT(event);
-    const permissionObject = resolvePermissions(token);
+    const permissionObject = event.requestContext.authorizer;
+    permissionObject.role = JSON.parse(permissionObject.role);
 
     if (!event.queryStringParameters.manualLookup && event.queryStringParameters.facilityName && event.queryStringParameters.park) {
       

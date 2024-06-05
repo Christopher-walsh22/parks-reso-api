@@ -2,7 +2,7 @@ const AWS = require('aws-sdk');
 const jwt = require('jsonwebtoken');
 
 const { dynamodb, runQuery, TABLE_NAME, TIMEZONE, logger, sendResponse } = require('/opt/baseLayer');
-const { decodeJWT, resolvePermissions } = require('/opt/permissionUtil');
+const { decodeJWT, resolvePermissions } = require('/opt/permissionLayer');
 const { DateTime } = require('luxon');
 const ALGORITHM = process.env.ALGORITHM || "HS384";
 

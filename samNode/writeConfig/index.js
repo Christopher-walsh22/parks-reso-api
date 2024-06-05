@@ -1,12 +1,11 @@
 const AWS = require('aws-sdk');
 
 const { dynamodb, TABLE_NAME, sendResponse, logger } = require('/opt/baseLayer');
-const { decodeJWT, resolvePermissions } = require('/opt/permissionUtil');
-
 
 exports.handler = async (event, context) => {
-  const token = await decodeJWT(event);
-  const permissionObject = resolvePermissions(token);
+  const permissionObject = event.requestContext.authorizer;
+  permissionObject.role = JSON.parse(permissionObject.role);
+
   if (permissionObject.isAdmin !== true) {
     return sendResponse(403, { msg: 'Unauthorized' }, context);
   }

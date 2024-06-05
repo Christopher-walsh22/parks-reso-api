@@ -1,6 +1,6 @@
 const AWS = require('aws-sdk');
 const { runQuery, TABLE_NAME, visibleFilter, logger, sendResponse, checkWarmup } = require('/opt/baseLayer');
-const { decodeJWT, roleFilter, resolvePermissions } = require('/opt/permissionUtil');
+const { decodeJWT, roleFilter, resolvePermissions } = require('/opt/permissionLayer');
 
 
 exports.handler = async (event, context) => {
@@ -15,8 +15,9 @@ exports.handler = async (event, context) => {
 
   try {
     console.log(event, "<-----EVENT")
-    const token = await decodeJWT(event);
-    const permissionObject = resolvePermissions(token);
+    const permissionObject = event.requestContext.authorizer;
+    permissionObject.role = JSON.parse(permissionObject.role);
+
 
     if (!event.queryStringParameters) {
       queryObj.ExpressionAttributeValues = {};

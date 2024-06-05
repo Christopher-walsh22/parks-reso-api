@@ -150,8 +150,8 @@ function verifySecret(tokenString, secret, callback, sendError) {
 async function roleFilter(records, roles) {
   return new Promise(async (resolve) => {
     const data = records.filter(record => {
-      logger.debug("record:", record.roles);
-      // Sanity check if `roles` isn't defined on reacord. Default to readable.
+      logger.info("record:", record.roles);
+      // Sanity check if `roles` isn't defined on record. Default to readable.
       if (record?.roles?.length > 0) {
         return roles.some(role => record.roles.indexOf(role) != -1);
       } else {
