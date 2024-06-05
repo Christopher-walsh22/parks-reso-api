@@ -32,7 +32,7 @@ exports.handler = async (event, context) => {
         logger.info("**Sysadmin**")
       } else if (permissionObject.isAuthenticated) {
         logger.info("**Some other authenticated person with parking-pass roles**")
-        logger.debug(permissionObject.roles);
+        logger.debug(permissionObject.role);
         try {
           await getParkAccess(event.queryStringParameters.park, permissionObject);
         } catch (error) {
@@ -63,7 +63,7 @@ exports.handler = async (event, context) => {
         logger.info("**Sysadmin**")
       } else if (permissionObject.isAuthenticated) {
         logger.info("**Some other authenticated person with parking-pass roles**")
-        logger.debug(permissionObject.roles);
+        logger.debug(permissionObject.role);
         try {
           await getParkAccess(event.queryStringParameters.park, permissionObject);
         } catch (error) {

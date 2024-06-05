@@ -37,7 +37,7 @@ exports.handler = async (event, context) => {
     // Public
     if (!permissionObject.isAuthenticated) {
       logger.info("**NOT AUTHENTICATED, PUBLIC**")
-      logger.debug(permissionObject.roles);
+      logger.debug(permissionObject.role);
       queryObj = await visibleFilter(queryObj, permissionObject.isAdmin);
       const parksData = await runQuery(queryObj);
       logger.info('Returning results:', parksData.length);
@@ -54,8 +54,8 @@ exports.handler = async (event, context) => {
     } else {
       // Some other authenticated role
       logger.info("**Some other authenticated person with parking-pass roles**")
-      logger.debug(permissionObject.roles)
-      parksData = await roleFilter(parksData, permissionObject.roles);
+      logger.debug(permissionObject.role)
+      parksData = await roleFilter(parksData, permissionObject.role);
       logger.debug(JSON.stringify(parksData));
     }
     logger.info("Returning results:", parksData.length);

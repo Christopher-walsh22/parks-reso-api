@@ -35,7 +35,7 @@ exports.handler = async (event, context) => {
     const endDate = event.queryStringParameters.endDate || startDate;
 
     // check if user has correct role
-    if (!permissionObject.isAdmin && permissionObject.roles.indexOf(park) === -1) {
+    if (!permissionObject.isAdmin && permissionObject.role.indexOf(park) === -1) {
       logger.info('Unauthorized - user does not have the specific park role.');
       return sendResponse(403, { msg: 'Unauthorized - user does not have the specific park role.' });
     }

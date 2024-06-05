@@ -36,8 +36,8 @@ exports.handler = async (event, context) => {
         let parkObj = await getPark(park, true);
 
         // Check roles.
-        logger.debug('Roles:', permissionObject.roles);
-        parkObj = await roleFilter([parkObj], permissionObject.roles);
+        logger.debug('Roles:', permissionObject.role);
+        parkObj = await roleFilter([parkObj], permissionObject.role);
 
         // If user does not have correct park role, then they are not authorized.
         if (parkObj.length < 1) {

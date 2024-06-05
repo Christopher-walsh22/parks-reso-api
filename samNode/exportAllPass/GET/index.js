@@ -41,7 +41,7 @@ exports.handler = async (event, context) => {
       return sendResponse(403, { msg: 'Unauthorized' });
     }
 
-    const sk = convertRolesToMD5(permissionObject.roles, "export-");
+    const sk = convertRolesToMD5(permissionObject.role, "export-");
 
     if (event?.queryStringParameters?.getJob) {
       logger.info("Requesting status of job:", event?.queryStringParameters?.getJob)
@@ -146,7 +146,7 @@ async function createJob(sk, permissionObject) {
     LogType: "None",
     Payload: JSON.stringify({
       jobId: sk,
-      roles: permissionObject.roles,
+      roles: permissionObject.role,
     }),
   };
   // Invoke generate report function
