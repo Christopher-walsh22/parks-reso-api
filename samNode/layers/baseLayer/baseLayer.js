@@ -613,6 +613,8 @@ const checkWarmup = function (event) {
     getFacilities,
     getPassesByStatus,
     storeObject,
+    checkPassExists,
+    convertPassToReserved,
     expressionBuilder,
     visibleFilter,
     restoreAvailablePass,
@@ -620,5 +622,4 @@ const checkWarmup = function (event) {
     sendResponse,
     checkWarmup,
     CustomError
-
   };
