@@ -3,8 +3,8 @@ const AWS = require('aws-sdk');
 const { dynamodb, TABLE_NAME, TIMEZONE, sendResponse, logger } = require('/opt/baseLayer');
 const { DateTime } = require('luxon');
 const { decodeJWT, resolvePermissions, getParkAccess } = require('/opt/permissionLayer');
-const { processReservationObjects, getFutureReservationObjects, createNewReservationsObj } = require('/opt/reservationUtil');
-const { unlockFacility, setFacilityLock } = require('/opt/facilityUtil');
+const { processReservationObjects, getFutureReservationObjects, createNewReservationsObj } = require('/opt/reservationLayer');
+const { unlockFacility, setFacilityLock } = require('/opt/facilityLayer');
 
 exports.handler = async (event, context) => {
   if (!event || !event.headers) {

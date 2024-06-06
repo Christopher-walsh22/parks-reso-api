@@ -1,5 +1,5 @@
 const AWS = require('aws-sdk');
-const { gcnSend } = require('/opt/gcNotifyUtil');
+const { gcnSend } = require('/opt/gcNotifyLayer');
 const { sendResponse, logger } = require('/opt/baseLayer');
 
 

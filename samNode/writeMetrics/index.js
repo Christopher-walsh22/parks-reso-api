@@ -1,7 +1,7 @@
 const { DateTime } = require("luxon");
 const { getParks, getFacilities, TIMEZONE, logger, sendResponse} = require("/opt/baseLayer");
-const { createMetric, postAllMetrics } = require("/opt/metricsUtil");
-const { getFutureReservationObjects } = require('/opt/reservationUtil');
+const { createMetric, postAllMetrics } = require("/opt/metricsLayer");
+const { getFutureReservationObjects } = require('/opt/reservationLayer');
 
 
 const today = DateTime.now().setZone(TIMEZONE);

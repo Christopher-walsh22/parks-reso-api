@@ -1,5 +1,5 @@
 const { dynamodb, TABLE_NAME, getParks, getFacilities, sendResponse, logger } = require('/opt/baseLayer');
-const { getCurrentDisplayNameById } = require('/opt/dataRegisterUtil');
+const { getCurrentDisplayNameById } = require('/opt/dataRegisterLayer');
 
 // This function queries the bcparks database for park names. 
 // If any park names have changed, the db item is updated with the new name. 

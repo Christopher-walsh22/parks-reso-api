@@ -1,5 +1,5 @@
 const { runQuery, TABLE_NAME, logger } = require('/opt/baseLayer');
-const { sendResponse, checkWarmup } = require('/opt/responseUtil');
+const { sendResponse, checkWarmup } = require('/opt/responseLayer');
 
 
 exports.handler = async (event, context) => {

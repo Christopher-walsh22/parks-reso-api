@@ -1,9 +1,9 @@
 const AWS = require('aws-sdk');
 const { runQuery, TABLE_NAME, META_TABLE_NAME, TIMEZONE, dynamodb, getParks, getFacilities, getPark, sendResponse, logger } = require('/opt/baseLayer');
-const { gcnSend } = require('/opt/gcNotifyUtil');
-const { webhookPost } = require('/opt/webHookUtil');
+const { gcnSend } = require('/opt/gcNotifyLayer');
+const { webhookPost } = require('/opt/webHookLayer');
 const { DateTime } = require('luxon');
-const { sendSMSMessage } = require('/opt/smsUtil');
+const { sendSMSMessage } = require('/opt/smsLayer');
 
 // Default look-ahead days.
 const LOOK_AHEAD_DAYS = 1;

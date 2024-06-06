@@ -1,7 +1,7 @@
 const AWS = require('aws-sdk');
 const { DateTime } = require("luxon");
 const { METRICS_TABLE_NAME, TABLE_NAME, TIMEZONE, runQuery, dynamodb, getOne, logger } = require("/opt/baseLayer");
-const { checkPassesRequired } = require("/opt/reservationUtil");
+const { checkPassesRequired } = require("/opt/reservationLayer");
 
 const MAX_TRANSACTION_SIZE = 25;
 

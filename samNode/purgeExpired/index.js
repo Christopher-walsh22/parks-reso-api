@@ -1,4 +1,4 @@
-const dynamoUtil = require('/opt/baseLayer');
+const dynamoLayer = require('/opt/baseLayer');
 const jwt = require('jsonwebtoken');
 const { logger } = require('/opt/baseLayer');
 
@@ -8,7 +8,7 @@ const { logger } = require('/opt/baseLayer');
  */
 exports.handler = async (event, context) => {
   logger.info('Purging expired JWTs');
-  const items = await dynamoUtil.getAllStoredJWTs(true);
+  const items = await dynamoLayer.getAllStoredJWTs(true);
   logger.info(`Going through ${items.length} expired items.`);
 
   for (const item of items) {
@@ -16,7 +16,7 @@ exports.handler = async (event, context) => {
     try {
       logger.debug(item);
       const token = jwt.decode(item.sk);
-      await dynamoUtil.restoreAvailablePass(item.pk,
+      await dynamoLayer.restoreAvailablePass(item.pk,
                                             item.sk,
                                             token.parkOrcs,
                                             token.shortPassDate,

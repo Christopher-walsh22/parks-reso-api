@@ -1,21 +1,19 @@
 const AWS = require('aws-sdk');
-const SECRET = process.env.JWT_SECRET || 'defaultSecret';
-const ALGORITHM = process.env.ALGORITHM || 'HS384';
-const HOLD_PASS_TIMEOUT = process.env.HOLD_PASS_TIMEOUT || '7m';
+const jwt = require('jsonwebtoken');
 const {
-  dynamodb,
+  DEFAULT_PM_OPENING_HOUR,
+  PASS_HOLD_STATUS,
   TABLE_NAME,
   TIMEZONE,
+  checkPassExists,
+  convertPassToReserved,
+  dynamodb,
   getFacility,
+  getOne,
   getPark,
-  getConfig,
-  DEFAULT_PM_OPENING_HOUR,
-  logger,
-  checkWarmup,
-  sendResponse,
-  CustomError 
-
+  storeObject
 } = require('/opt/baseLayer');
+const { sendResponse, checkWarmup, CustomError } = require('/opt/baseLayer');
 const {
   decodeJWT,
   deleteHoldToken,
@@ -23,12 +21,21 @@ const {
   resolvePermissions,
   validateToken,
   verifyHoldToken
-} = require('/opt');
+} = require('/opt/permissionLayer');
 const { DateTime } = require('luxon');
-const { createNewReservationsObj } = require('/opt/reservationUtil');
-const { getPersonalizationAttachment, getAdminLinkToPass, isBookingAllowed, sendTemplateSQS, sendExpirationSQS } = require('/opt/passUtil');
-const { sendSQSMessage } = require('/opt/sqsUtil');
-const { generateRegistrationNumber, verifyJWT } = require('/opt/captchaLayer');
+const { logger } = require('/opt/baseLayer');
+const { createNewReservationsObj } = require('/opt/reservationLayer');
+const {
+  getAdminLinkToPass,
+  getPersonalizationAttachment,
+  isBookingAllowed,
+  sendTemplateSQS,
+  sendExpirationSQS
+} = require('/opt/passLayer');
+const { generateRegistrationNumber } = require('/opt/jwtLayer');
+const SECRET = process.env.JWT_SECRET || 'defaultSecret';
+const ALGORITHM = process.env.ALGORITHM || 'HS384';
+const HOLD_PASS_TIMEOUT = process.env.HOLD_PASS_TIMEOUT || '7m';
 
 // default opening/closing hours in 24h time
 const DEFAULT_AM_OPENING_HOUR = 7;

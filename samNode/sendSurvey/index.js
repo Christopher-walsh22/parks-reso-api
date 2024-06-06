@@ -1,7 +1,7 @@
 const AWS = require('aws-sdk');
 const { runQuery, TABLE_NAME, META_TABLE_NAME, TIMEZONE, dynamodb, logger, sendResponse } = require('/opt/baseLayer');
-const { gcnSend } = require('/opt/gcNotifyUtil');
-const { webhookPost } = require('/opt/webhookUtil');
+const { gcnSend } = require('/opt/gcNotifyLayer');
+const { webhookPost } = require('/opt/webhookLayer');
 const { DateTime } = require('luxon');
 
 

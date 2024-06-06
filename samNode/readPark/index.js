@@ -2,9 +2,14 @@ const AWS = require('aws-sdk');
 const { runQuery, TABLE_NAME, visibleFilter, logger, sendResponse, checkWarmup } = require('/opt/baseLayer');
 const { decodeJWT, roleFilter, resolvePermissions } = require('/opt/permissionLayer');
 
-
 exports.handler = async (event, context) => {
+  console.log('in here?')
   logger.info('Read Park', event);
+  // Allow CORS
+  if (event.httpMethod === 'OPTIONS') {
+    return sendResponse(200, {}, 'Success', null, context);
+  }
+
   if (checkWarmup(event)) {
     return sendResponse(200, {});
   }
@@ -15,9 +20,8 @@ exports.handler = async (event, context) => {
 
   try {
     console.log(event, "<-----EVENT")
-    const permissionObject = event.requestContext.authorizer;
-    permissionObject.role = JSON.parse(permissionObject.role);
-
+    const token = await decodeJWT(event);
+    const permissionObject = resolvePermissions(token);
 
     if (!event.queryStringParameters) {
       queryObj.ExpressionAttributeValues = {};
@@ -37,7 +41,7 @@ exports.handler = async (event, context) => {
     // Public
     if (!permissionObject.isAuthenticated) {
       logger.info("**NOT AUTHENTICATED, PUBLIC**")
-      logger.debug(permissionObject.role);
+      logger.debug(permissionObject.roles);
       queryObj = await visibleFilter(queryObj, permissionObject.isAdmin);
       const parksData = await runQuery(queryObj);
       logger.info('Returning results:', parksData.length);
@@ -54,8 +58,8 @@ exports.handler = async (event, context) => {
     } else {
       // Some other authenticated role
       logger.info("**Some other authenticated person with parking-pass roles**")
-      logger.debug(permissionObject.role)
-      parksData = await roleFilter(parksData, permissionObject.role);
+      logger.debug(permissionObject.roles)
+      parksData = await roleFilter(parksData, permissionObject.roles);
       logger.debug(JSON.stringify(parksData));
     }
     logger.info("Returning results:", parksData.length);

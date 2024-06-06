@@ -1,7 +1,7 @@
 const AWS = require("aws-sdk");
 const s3 = new AWS.S3();
 const { runScan, TABLE_NAME, logger } = require("/opt/baseLayer");
-const { updateJobEntry } = require("/opt/getAllPassUtil");
+const { updateJobEntry } = require("/opt/getAllPassLayer");
 const csvjson = require('csvjson');
 
 const FILE_NAME = process.env.FILE_NAME || "DUP_Export";

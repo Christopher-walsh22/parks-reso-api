@@ -1,5 +1,5 @@
 const { runQuery, TABLE_NAME, logger, sendResponse, checkWarmup } = require('/opt/baseLayer');
-const { getParkAccess } = require('/opt/permissionLayer');
+const { decodeJWT, resolvePermissions, getParkAccess } = require('/opt/permissionLayer');
 
 exports.handler = async (event, context) => {
   logger.debug('Read Facility', event);
@@ -11,8 +11,8 @@ exports.handler = async (event, context) => {
     TableName: TABLE_NAME
   };
 
-  const permissionObject = event.requestContext.authorizer;
-  permissionObject.role = JSON.parse(permissionObject.role);
+  const token = await decodeJWT(event);
+  const permissionObject = resolvePermissions(token);
 
   try {
     if (!event.queryStringParameters) {
@@ -32,7 +32,7 @@ exports.handler = async (event, context) => {
         logger.info("**Sysadmin**")
       } else if (permissionObject.isAuthenticated) {
         logger.info("**Some other authenticated person with parking-pass roles**")
-        logger.debug(permissionObject.role);
+        logger.debug(permissionObject.roles);
         try {
           await getParkAccess(event.queryStringParameters.park, permissionObject);
         } catch (error) {
@@ -63,7 +63,7 @@ exports.handler = async (event, context) => {
         logger.info("**Sysadmin**")
       } else if (permissionObject.isAuthenticated) {
         logger.info("**Some other authenticated person with parking-pass roles**")
-        logger.debug(permissionObject.role);
+        logger.debug(permissionObject.roles);
         try {
           await getParkAccess(event.queryStringParameters.park, permissionObject);
         } catch (error) {

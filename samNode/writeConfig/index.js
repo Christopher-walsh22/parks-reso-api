@@ -4,7 +4,7 @@ const { dynamodb, TABLE_NAME, sendResponse, logger } = require('/opt/baseLayer')
 
 exports.handler = async (event, context) => {
   const permissionObject = event.requestContext.authorizer;
-  permissionObject.role = JSON.parse(permissionObject.role);
+  permissionObject.roles = JSON.parse(permissionObject.roles);
 
   if (permissionObject.isAdmin !== true) {
     return sendResponse(403, { msg: 'Unauthorized' }, context);

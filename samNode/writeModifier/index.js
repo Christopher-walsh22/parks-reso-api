@@ -1,8 +1,8 @@
 const { sendResponse, logger } = require('/opt/baseLayer');
 const { getParkAccess } = require('/opt/permissionLayer');
-const { setFacilityLock, unlockFacility } = require('/opt/facilityUtil');
-const { createNewReservationsObj } = require('/opt/reservationUtil');
-const { processReservationObjects, getReservationObject } = require('/opt/reservationUtil');
+const { setFacilityLock, unlockFacility } = require('/opt/facilityLayer');
+const { createNewReservationsObj } = require('/opt/reservationLayer');
+const { processReservationObjects, getReservationObject } = require('/opt/reservationLayer');
 const { DateTime } = require('luxon');
 
 // Example Payload:
@@ -29,7 +29,7 @@ exports.handler = async (event, context) => {
   }
 
   const permissionObject = event.requestContext.authorizer;
-  permissionObject.role = JSON.parse(permissionObject.role);
+  permissionObject.roles = JSON.parse(permissionObject.roles);
 
   if (permissionObject.isAuthenticated !== true) {
     logger.info('Unauthorized');
@@ -98,7 +98,7 @@ async function updateModifier(date, modTimes, parkOrcs, currentFacility) {
 
     const reservationsObjectPK = `reservations::${parkOrcs}::${currentFacility.name}`;
     
-    // Apply modifier - ReservationObjUtil will handle available pass logic.
+    // Apply modifier - ReservationObjLayer will handle available pass logic.
     //// Ensure the res obj exists
     await createNewReservationsObj(currentFacility, reservationsObjectPK, date);
     //// Get modifier via date

@@ -1,5 +1,5 @@
 const { runQuery, TABLE_NAME, DEFAULT_BOOKING_DAYS_AHEAD, TIMEZONE, getPark, getFacility, sendResponse, logger } = require('/opt/baseLayer');
-const { formatPublicReservationObject } = require('/opt/reservationUtil')
+const { formatPublicReservationObject } = require('/opt/reservationLayer')
 const { decodeJWT, resolvePermissions, roleFilter } = require('/opt/permissionLayer');
 const { DateTime } = require('luxon');
 
@@ -36,8 +36,8 @@ exports.handler = async (event, context) => {
         let parkObj = await getPark(park, true);
 
         // Check roles.
-        logger.debug('Roles:', permissionObject.role);
-        parkObj = await roleFilter([parkObj], permissionObject.role);
+        logger.debug('Roles:', permissionObject.roles);
+        parkObj = await roleFilter([parkObj], permissionObject.roles);
 
         // If user does not have correct park role, then they are not authorized.
         if (parkObj.length < 1) {

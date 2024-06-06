@@ -1,5 +1,6 @@
 const SSO_ISSUER = process.env.SSO_ISSUER || 'https://dev.loginproxy.gov.bc.ca/auth/realms/bcparks-service-transformation';
 const SSO_JWKSURI = process.env.SSO_JWKSURI || 'https://dev.loginproxy.gov.bc.ca/auth/realms/bcparks-service-transformation/protocol/openid-connect/certs';
+const CF_SECRET_KEY = process.env.CF_SECRET_KEY || '1x0000000000000000000000000000000AA';
 const INVALID_TOKEN = {
         decoded: false,
         data: null
@@ -7,6 +8,7 @@ const INVALID_TOKEN = {
 const { runQuery, TABLE_NAME, dynamodb, logger } = require('/opt/baseLayer');
 const jwt = require('jsonwebtoken');
 const jwksClient = require('jwks-rsa');
+const axios = require('axios');
 
 exports.decodeJWT = async function (event) {
   const token = event.headers.Authorization;
@@ -163,11 +165,12 @@ function verifySecret(tokenString, secret, callback, sendError) {
     }
   });
 }
+
 async function roleFilter(records, roles) {
   return new Promise(async (resolve) => {
     const data = records.filter(record => {
-      logger.info("record:", record.roles);
-      // Sanity check if `roles` isn't defined on record. Default to readable.
+      logger.debug("record:", record.roles);
+      // Sanity check if `roles` isn't defined on reacord. Default to readable.
       if (record?.roles?.length > 0) {
         return roles.some(role => record.roles.indexOf(role) != -1);
       } else {
@@ -220,8 +223,8 @@ exports.getParkAccess = async function getParkAccess(park, permissionObject) {
   queryObj.KeyConditionExpression = 'pk =:pk AND sk =:sk';
   let parksData = await runQuery(queryObj);
   logger.debug("parksData:", parksData);
-  logger.debug("permissionObject.role:", permissionObject.role);
-  parksData = await roleFilter(parksData, permissionObject.role);
+  logger.debug("permissionObject.roles:", permissionObject.roles);
+  parksData = await roleFilter(parksData, permissionObject.roles);
   logger.debug("parksData:", parksData);
   if (parksData.length < 1) {
     // They are not authorized.

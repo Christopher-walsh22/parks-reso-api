@@ -1,5 +1,5 @@
 const AWS = require('aws-sdk');
-const { logger } = require('/opt/loggerUtil');
+const { logger } = require('/opt/loggerLayer');
 const { DateTime } = require('luxon');
 
 const TABLE_NAME = process.env.TABLE_NAME || 'parksreso';
@@ -9,11 +9,7 @@ const options = {
   region: 'ca-central-1'
 };
 
-
-  options.endpoint = "http://host.docker.internal:8000"
-
-
-
+options.endpoint = 'http://host.docker.internal:8000';
 const ACTIVE_STATUS = 'active';
 const RESERVED_STATUS = 'reserved';
 const EXPIRED_STATUS = 'expired';

@@ -93,7 +93,7 @@ Parameters:
     Default: "ID"
   LogLevel:
     Type: String
-    Default: 'error'
+    Default: 'info'
   MetricsTableName:
     Type: String
     Default: 'parksreso-metrics'
@@ -136,14 +136,10 @@ Parameters:
   GCNotifyReminderTemplateID:
     Type: String
     Default: 'SSSSSS'
+  CFSecretKey:
+    Type: String
+    Default: '1x0000000000000000000000000000000AA'
   
-Globals:
-  Api:
-    Cors:
-      AllowMethods: "'POST,GET,OPTIONS, PUT'"
-      AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-App-Version'"
-      AllowOrigin: "'*'"
-
 Resources:
 
   ###LAYERS###
@@ -178,7 +174,7 @@ Resources:
     Properties:
       LayerName: exportAllPassLayer
       Description: Data Register Utilities Layer
-      ContentUri: layers/exportAllPassUtil/
+      ContentUri: layers/exportAllPassLayer/
       CompatibleRuntimes:
         - nodejs18.x
       LicenseInfo: 'Apache-2.0'
@@ -191,7 +187,7 @@ Resources:
     Properties:
       LayerName: dataRegisterLayer
       Description: Data Register Utilities Layer
-      ContentUri: layers/dataRegisterUtil/
+      ContentUri: layers/dataRegisterLayer/
       CompatibleRuntimes:
         - nodejs18.x
       LicenseInfo: 'Apache-2.0'
@@ -204,7 +200,7 @@ Resources:
     Properties:
       LayerName: metricsLayer
       Description: Metrics Utilities Layer
-      ContentUri: layers/metricsUtil/
+      ContentUri: layers/metricsLayer/
       CompatibleRuntimes:
         - nodejs18.x
       LicenseInfo: 'Apache-2.0'
@@ -217,7 +213,7 @@ Resources:
     Properties:
       LayerName: facilityLayer
       Description: Facility Utilities Layer
-      ContentUri: layers/facilityUtil/
+      ContentUri: layers/facilityLayer/
       CompatibleRuntimes:
         - nodejs18.x
       LicenseInfo: 'Apache-2.0'
@@ -230,7 +226,7 @@ Resources:
     Properties:
       LayerName: passLayer
       Description: Pass Utilities Layer
-      ContentUri: layers/passUtil/
+      ContentUri: layers/passLayer/
       CompatibleRuntimes:
         - nodejs18.x
       LicenseInfo: 'Apache-2.0'
@@ -243,7 +239,7 @@ Resources:
     Properties:
       LayerName: sqsLayer
       Description: SQS Utilities Layer
-      ContentUri: layers/sqsUtil/
+      ContentUri: layers/sqsLayer/
       CompatibleRuntimes:
         - nodejs18.x
       LicenseInfo: 'Apache-2.0'
@@ -256,7 +252,7 @@ Resources:
     Properties:
       LayerName: gcNotifyLayer
       Description: GC Notify Utilities Layer
-      ContentUri: layers/gcNotifyUtil/
+      ContentUri: layers/gcNotifyLayer/
       CompatibleRuntimes:
         - nodejs18.x
       LicenseInfo: 'Apache-2.0'
@@ -269,7 +265,7 @@ Resources:
     Properties:
       LayerName: webHookLayer
       Description: Parks Data Register WebHook Layer
-      ContentUri: layers/webHookUtil/
+      ContentUri: layers/webHookLayer/
       CompatibleRuntimes:
         - nodejs18.x
       LicenseInfo: 'Apache-2.0'
@@ -282,7 +278,7 @@ Resources:
     Properties:
       LayerName: smsUtil
       Description: SMS Utilities Layer
-      ContentUri: layers/smsUtil/
+      ContentUri: layers/smsLayer/
       CompatibleRuntimes:
         - nodejs18.x
       LicenseInfo: 'Apache-2.0'
@@ -308,7 +304,7 @@ Resources:
     Properties:
       LayerName: responseLayer
       Description: Response Utilities layer
-      ContentUri: layers/responseUtil
+      ContentUri: layers/responseLayer/
       CompatibleRuntimes:
         - nodejs18.x
       LicenseInfo: 'Apache-2.0'
@@ -321,7 +317,7 @@ Resources:
     Properties:
       LayerName: LoggerLayer
       Description: Logger Utilities layer
-      ContentUri: layers/loggerUtil
+      ContentUri: layers/loggerLayer/
       CompatibleRuntimes:
         - nodejs18.x
       LicenseInfo: 'Apache-2.0'
@@ -334,7 +330,7 @@ Resources:
     Properties:
       LayerName: PermissionLayer
       Description: Permission Utilities layer
-      ContentUri: layers/permissionUtil
+      ContentUri: layers/permissionLayer/
       CompatibleRuntimes:
         - nodejs18.x
       LicenseInfo: 'Apache-2.0'
@@ -347,7 +343,7 @@ Resources:
     Properties:
       LayerName: ReservationLayer
       Description: Reservation Utilities layer
-      ContentUri: layers/reservationUtil
+      ContentUri: layers/reservationLayer/
       CompatibleRuntimes:
         - nodejs18.x
       LicenseInfo: 'Apache-2.0'
@@ -651,119 +647,131 @@ Resources:
             Path: /facility
             Method: put
 
-############
   PutPassFunction:
-      Type: AWS::Serverless::Function
-      Properties: 
-        CodeUri: writePass/
-        Timeout: 60
-        Handler: index.handler
-        Environment:
-          Variables:
-            PUBLIC_FRONTEND: !Ref PublicFrontend
-            PASS_CANCELLATION_ROUTE: !Ref PassCancellationRoute
-            GC_NOTIFY_TRAIL_RECEIPT_TEMPLATE_ID: !Ref GCNotifyTrailReceiptTemplateID
-            GC_NOTIFY_PARKING_RECEIPT_TEMPLATE_ID: !Ref GCNotifyParkingReceiptTemplateID
-            METRICS_TABLE_NAME: !Ref MetricsTableName
-            META_TABLE_NAME: !Ref MetaTableName
-            LOG_LEVEL: !Ref LogLevel
-            PASS_MANAGEMENT_ROUTE: !Ref PassManagementRoute
-            ADMIN_FRONTEND: !Ref AdminFrontEnd
-            JWT_SECRET: !Ref JWTSecret
-            JWT_SIGN_EXPIRY: !Ref JWTSignExpiry
-            PRIVATE_KEY: !Ref PrivateKey
-            AWS_DEFAULT_REGION: !Ref AWSDefaultRegion
-            ALGORITHM: !Ref Algorithm
-            SQSQUEUENAME: !Ref SqsQueueName
-            AWS_REGION: !Ref AWSRegion
-            SSO_ISSUER: !Ref SSOIssuer
-            SSO_JWKSURI: !Ref SSOJWKSUri
-            MODERATE_CAPACITY_THRESHOLD: !Ref ModerateCapacityThreshold
-            LOW_CAPACITY_THRESHOLD: !Ref LowCapacityThreshold
-        Layers:
-          - !Ref PassLayer
-          - !Ref SQSLayer
-          - !Ref ReservationLayer
-          - !Ref BaseLayer
-          - !Ref PermissionLayer
-        Runtime: nodejs18.x
-        Architectures:
-          - x86_64
-        Events:
-          putPass:
-            Type: Api
-            Properties:
-              Path: /pass
-              Method: put
+    Type: AWS::Serverless::Function
+    Properties: 
+      CodeUri: writePass/
+      Timeout: 60
+      Handler: index.handler
+      Environment:
+        Variables:
+          PUBLIC_FRONTEND: !Ref PublicFrontend
+          PASS_CANCELLATION_ROUTE: !Ref PassCancellationRoute
+          GC_NOTIFY_TRAIL_RECEIPT_TEMPLATE_ID: !Ref GCNotifyTrailReceiptTemplateID
+          GC_NOTIFY_PARKING_RECEIPT_TEMPLATE_ID: !Ref GCNotifyParkingReceiptTemplateID
+          METRICS_TABLE_NAME: !Ref MetricsTableName
+          META_TABLE_NAME: !Ref MetaTableName
+          LOG_LEVEL: !Ref LogLevel
+          PASS_MANAGEMENT_ROUTE: !Ref PassManagementRoute
+          ADMIN_FRONTEND: !Ref AdminFrontEnd
+          JWT_SECRET: !Ref JWTSecret
+          JWT_SIGN_EXPIRY: !Ref JWTSignExpiry
+          PRIVATE_KEY: !Ref PrivateKey
+          AWS_DEFAULT_REGION: !Ref AWSDefaultRegion
+          ALGORITHM: !Ref Algorithm
+          SQSQUEUENAME: !Ref SqsQueueName
+          AWS_REGION: !Ref AWSRegion
+          SSO_ISSUER: !Ref SSOIssuer
+          SSO_JWKSURI: !Ref SSOJWKSUri
+          MODERATE_CAPACITY_THRESHOLD: !Ref ModerateCapacityThreshold
+          LOW_CAPACITY_THRESHOLD: !Ref LowCapacityThreshold
+          CF_SECRET_KEY: !Ref CFSecretKey
+      Layers:
+        - !Ref PassLayer
+        - !Ref SQSLayer
+        - !Ref ReservationLayer
+        - !Ref BaseLayer
+        - !Ref PermissionLayer
+        - !Ref JWTLayer
+      Runtime: nodejs18.x
+      Architectures:
+        - x86_64
+      Events:
+        putPass:
+          Type: Api
+          Properties:
+            Path: /pass
+            Method: put
+            RestApiId: !Ref ApiDeployment
 
   WritePassFunction:
-      Type: AWS::Serverless::Function
-      Properties: 
-        CodeUri: writePass/
-        Timeout: 60
-        Handler: index.handler
-        Environment:
-          Variables:
-            METRICS_TABLE_NAME: !Ref MetricsTableName
-            META_TABLE_NAME: !Ref MetaTableName
-            LOG_LEVEL: !Ref LogLevel
-            PASS_MANAGEMENT_ROUTE: !Ref PassManagementRoute
-            ADMIN_FRONTEND: !Ref AdminFrontEnd
-            JWT_SECRET: !Ref JWTSecret
-            JWT_SIGN_EXPIRY: !Ref JWTSignExpiry
-            PRIVATE_KEY: !Ref PrivateKey
-            AWS_DEFAULT_REGION: !Ref AWSDefaultRegion
-            ALGORITHM: !Ref Algorithm
-            SQSQUEUENAME: !Ref SqsQueueName
-            AWS_REGION: !Ref AWSRegion
-            SSO_ISSUER: !Ref SSOIssuer
-            SSO_JWKSURI: !Ref SSOJWKSUri
-            MODERATE_CAPACITY_THRESHOLD: !Ref ModerateCapacityThreshold
-            LOW_CAPACITY_THRESHOLD: !Ref LowCapacityThreshold
-        Layers:
-          - !Ref PassLayer
-          - !Ref SQSLayer
-          - !Ref ReservationLayer
-          - !Ref BaseLayer
-          - !Ref PermissionLayer
-
-        Runtime: nodejs18.x
-        Architectures:
-          - x86_64
-        Events:
-          writePass:
-            Type: Api
-            Properties:
-              Path: /pass
-              Method: post
+    Type: AWS::Serverless::Function
+    Properties: 
+      CodeUri: writePass/
+      Timeout: 60
+      Handler: index.handler
+      Environment:
+        Variables:
+          METRICS_TABLE_NAME: !Ref MetricsTableName
+          META_TABLE_NAME: !Ref MetaTableName
+          LOG_LEVEL: !Ref LogLevel
+          PASS_MANAGEMENT_ROUTE: !Ref PassManagementRoute
+          ADMIN_FRONTEND: !Ref AdminFrontEnd
+          JWT_SECRET: !Ref JWTSecret
+          JWT_SIGN_EXPIRY: !Ref JWTSignExpiry
+          PRIVATE_KEY: !Ref PrivateKey
+          AWS_DEFAULT_REGION: !Ref AWSDefaultRegion
+          ALGORITHM: !Ref Algorithm
+          SQSQUEUENAME: !Ref SqsQueueName
+          AWS_REGION: !Ref AWSRegion
+          SSO_ISSUER: !Ref SSOIssuer
+          SSO_JWKSURI: !Ref SSOJWKSUri
+          MODERATE_CAPACITY_THRESHOLD: !Ref ModerateCapacityThreshold
+          LOW_CAPACITY_THRESHOLD: !Ref LowCapacityThreshold
+          CF_SECRET_KEY: !Ref CFSecretKey
+      Layers:
+        - !Ref PassLayer
+        - !Ref SQSLayer
+        - !Ref ReservationLayer
+        - !Ref BaseLayer
+        - !Ref PermissionLayer
+        - !Ref JWTLayer
+      Runtime: nodejs18.x
+      Architectures:
+        - x86_64
+      Events:
+        writePass:
+          Type: Api
+          Properties:
+            Path: /pass
+            Method: post
+            RestApiId: !Ref ApiDeployment
+            Auth:
+              Authorizer: NONE
+              OverrideApiAuth: true
   
   DeletePassFunction:
-      Type: AWS::Serverless::Function
-      Properties: 
-        CodeUri: deletePass/
-        Timeout: 60
-        Handler: index.handler
-        Environment:
-          Variables:
-            ALGORITHM: !Ref Algorithm
-            JWT_SECRET: !Ref JWTSecret
-            METRICS_TABLE_NAME: !Ref MetricsTableName
-            META_TABLE_NAME: !Ref MetaTableName
-            LOG_LEVEL: !Ref LogLevel
-            SSO_ISSUER: !Ref SSOIssuer
-            SSO_JWKSURI: !Ref SSOJWKSUri
-        Layers:
-          - !Ref PermissionLayer
-          - !Ref BaseLayer
-        Runtime: nodejs18.x
-        Architectures:
-          - x86_64
-        Events:
-          deletePass:
-            Type: Api
-            Properties:
-              Path: /pass
-              Method: delete
+    Type: AWS::Serverless::Function
+    Properties: 
+      CodeUri: deletePass/
+      Timeout: 60
+      Handler: index.handler
+      Environment:
+        Variables:
+          ALGORITHM: !Ref Algorithm
+          JWT_SECRET: !Ref JWTSecret
+          METRICS_TABLE_NAME: !Ref MetricsTableName
+          META_TABLE_NAME: !Ref MetaTableName
+          LOG_LEVEL: !Ref LogLevel
+          SSO_ISSUER: !Ref SSOIssuer
+          SSO_JWKSURI: !Ref SSOJWKSUri
+          CF_SECRET_KEY: !Ref CFSecretKey
+      Layers:
+        - !Ref PermissionLayer
+        - !Ref BaseLayer
+      Runtime: nodejs18.x
+      Architectures:
+        - x86_64
+      Events:
+        deletePass:
+          Type: Api
+          Properties:
+            Path: /pass
+            Method: delete
+            RestApiId: !Ref ApiDeployment
+            Auth:
+              Authorizer: NONE
+              OverrideApiAuth: true
 
   ExportPassFunction:
       Type: AWS::Serverless::Function
@@ -816,7 +824,7 @@ Resources:
             Path: /metric
             Method: get
             RestApiId: !Ref ApiDeployment
-#############_ STEP 2
+
   ReadParkFunction:
     Type: AWS::Serverless::Function
     Properties: 
@@ -831,6 +839,7 @@ Resources:
           LOG_LEVEL: !Ref LogLevel
           SSO_ISSUER: !Ref SSOIssuer
           SSO_JWKSURI: !Ref SSOJWKSUri
+          CF_SECRET_KEY: !Ref CFSecretKey
       Layers:
         - !Ref BaseLayer
         - !Ref PermissionLayer
@@ -844,6 +853,18 @@ Resources:
             Path: /park
             Method: get
             RestApiId: !Ref ApiDeployment
+            Auth:
+              Authorizer: NONE
+              OverrideApiAuth: true
+        readParkOptions:
+          Type: Api
+          Properties:
+            Path: /park
+            Method: options
+            RestApiId: !Ref ApiDeployment
+            Auth:
+              Authorizer: NONE
+              OverrideApiAuth: true
 
   ReadPassFunction:
       Type: AWS::Serverless::Function
@@ -862,6 +883,7 @@ Resources:
             METRICS_TABLE_NAME: !Ref MetricsTableName
             META_TABLE_NAME: !Ref MetaTableName
             LOG_LEVEL: !Ref LogLevel
+            CF_SECRET_KEY: !Ref CFSecretKey
         Layers:
           - !Ref PermissionLayer
           - !Ref BaseLayer
@@ -875,6 +897,9 @@ Resources:
               Path: /pass
               Method: get
               RestApiId: !Ref ApiDeployment
+              Auth:
+                Authorizer: NONE
+                OverrideApiAuth: true
 
   ReadFaqFunction:
     Type: AWS::Serverless::Function
@@ -961,6 +986,7 @@ Resources:
           METRICS_TABLE_NAME: !Ref MetricsTableName
           META_TABLE_NAME: !Ref MetaTableName
           LOG_LEVEL: !Ref LogLevel
+          CF_SECRET_KEY: !Ref CFSecretKey
       Layers:
         - !Ref BaseLayer
         - !Ref PermissionLayer
@@ -977,6 +1003,15 @@ Resources:
             Auth:
               Authorizer: NONE
               OverrideApiAuth: true
+        readFacilityOptions:
+          Type: Api
+          Properties:
+            Path: /facility
+            Method: options
+            RestApiId: !Ref ApiDeployment
+            Auth:
+              Authorizer: NONE
+              OverrideApiAuth: true 
   
   ReadReservationFunction:
     Type: AWS::Serverless::Function
@@ -993,6 +1028,7 @@ Resources:
           SSO_JWKSURI: !Ref SSOJWKSUri
           MODERATE_CAPACITY_THRESHOLD: !Ref ModerateCapacityThreshold
           LOW_CAPACITY_THRESHOLD: !Ref LowCapacityThreshold
+          CF_SECRET_KEY: !Ref CFSecretKey
       Layers:
         - !Ref BaseLayer
         - !Ref PermissionLayer
@@ -1006,6 +1042,10 @@ Resources:
           Properties:
             Path: /reservation
             Method: get
+            RestApiId: !Ref ApiDeployment
+            Auth:
+                Authorizer: NONE
+                OverrideApiAuth: true
   
   ###JOBS??###
   CheckActivationFunction:
@@ -1105,6 +1145,7 @@ Resources:
           LOG_LEVEL: info
           SSO_ISSUER: !Ref SSOIssuer
           SSO_JWKSURI: !Ref SSOJWKSUri
+          CF_SECRET_KEY: !Ref CFSecretKey
 
   ### API ###
   ApiDeployment:
@@ -1113,7 +1154,7 @@ Resources:
       StageName: !Ref Stage
       Cors:
         AllowMethods: "'POST,GET,OPTIONS,PUT'"
-        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-App-Version'"
         AllowOrigin: "'*'"
         MaxAge: "'600'"
       Auth:
@@ -1126,7 +1167,7 @@ Resources:
             Identity:
               Headers:
                 - Authorization
-  
+
 Outputs:
   ApiDeployment:
     Description: 'API Gateway endpoint URL for Stage for Config function'

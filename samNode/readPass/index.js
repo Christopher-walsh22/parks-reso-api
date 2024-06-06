@@ -3,7 +3,7 @@ const jwt = require('jsonwebtoken');
 const axios = require('axios');
 
 const { runQuery, TABLE_NAME, expressionBuilder, sendResponse, logger } = require('/opt/baseLayer');
-const { getParkAccess } = require('/opt/permissionLayer');
+const { decodeJWT, resolvePermissions, getParkAccess } = require('/opt/permissionLayer');
 const { DateTime } = require('luxon');
 const ALGORITHM = process.env.ALGORITHM || "HS384";
 
@@ -18,8 +18,8 @@ exports.handler = async (event, context) => {
       return sendResponse(400, { msg: 'Invalid Request' }, context);
     }
 
-    const permissionObject = event.requestContext.authorizer;
-    permissionObject.role = JSON.parse(permissionObject.role);
+    const token = await decodeJWT(event);
+    const permissionObject = resolvePermissions(token);
 
     if (!event.queryStringParameters.manualLookup && event.queryStringParameters.facilityName && event.queryStringParameters.park) {
       
@@ -243,8 +243,8 @@ exports.handler = async (event, context) => {
       }
     } else if (event.queryStringParameters.passId && event.queryStringParameters.park) {
       if (permissionObject.isAuthenticated !== true
-        || (permissionObject.role.indexOf(event.queryStringParameters.park) === -1
-            && permissionObject.role.indexOf('sysadmin') === -1)) {
+        || (permissionObject.roles.indexOf(event.queryStringParameters.park) === -1
+            && permissionObject.roles.indexOf('sysadmin') === -1)) {
         logger.info("Unauthorized");
         return sendResponse(403, { msg: 'Unauthorized!' });
       } else {
@@ -259,8 +259,8 @@ exports.handler = async (event, context) => {
     } else if (event.queryStringParameters.manualLookup && event.queryStringParameters.park && event.queryStringParameters.date) {
       // Manual Lookup Search by ADMIN
       if (permissionObject.isAuthenticated !== true
-          || (permissionObject.role.indexOf(event.queryStringParameters.park) === -1
-              && permissionObject.role.indexOf('sysadmin') === -1)) {
+          || (permissionObject.roles.indexOf(event.queryStringParameters.park) === -1
+              && permissionObject.roles.indexOf('sysadmin') === -1)) {
         logger.info("Unauthorized.");
         logger.debug(permissionObject);
         return sendResponse(403, { msg: 'Unauthorized to perform this action.', title: 'Unauthorized.' });

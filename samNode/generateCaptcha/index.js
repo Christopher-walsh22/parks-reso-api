@@ -1,6 +1,6 @@
 const { sendResponse, checkWarmup, logger } = require('/opt/baseLayer');
 //
-const { isBookingAllowed } = require('/opt/passUtil');
+const { isBookingAllowed } = require('/opt/passLayer');
 
 const jose = require('node-jose');
 const svgCaptcha = require('svg-captcha');

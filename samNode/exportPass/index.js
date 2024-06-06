@@ -19,7 +19,7 @@ exports.handler = async (event, context) => {
     if (event.queryStringParameters.facilityName && event.queryStringParameters.park) {
 
       const permissionObject = event.requestContext.authorizer;
-      permissionObject.role = JSON.parse(permissionObject.role);
+      permissionObject.roles = JSON.parse(permissionObject.roles);
       if (permissionObject.isAdmin !== true) {
         logger.info("Unauthorized");
         return sendResponse(403, { msg: 'Unauthorized' });

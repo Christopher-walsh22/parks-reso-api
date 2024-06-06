@@ -5,26 +5,27 @@ const TABLE_NAME = 'parksreso';
 const META_TABLE_NAME = process.env.META_TABLE_NAME || 'parksreso-meta';
 const METRICS_TABLE_NAME = process.env.METRICS_TABLE_NAME || 'parksreso-metrics';
 const AWS_REGION = process.env.AWS_REGION || "ca-central-1";
-const DYNAMODB_ENDPOINT_URL = process.env.DYNAMODB_ENDPOINT_URL || "http://172.17.0.2:8000"
+const DYNAMODB_ENDPOINT_URL = process.env.DYNAMODB_ENDPOINT_URL || "http://host.docker.internal:8000"
 const options = {
   region: AWS_REGION,
   endpoint: DYNAMODB_ENDPOINT_URL
 };
 if (process.env.IS_OFFLINE === 'true') {
   // If offline point at local
-  options.endpoint = 'http://172.17.0.19:8000';
+  options.endpoint = 'http://host.docker.internal:8000';
 }
 
 const ACTIVE_STATUS = 'active';
 const RESERVED_STATUS = 'reserved';
+const PASS_HOLD_STATUS = 'hold';
 const EXPIRED_STATUS = 'expired';
 const PASS_TYPE_AM = 'AM';
 const PASS_TYPE_PM = 'PM';
 const PASS_TYPE_DAY = 'DAY';
 const TIMEZONE = 'America/Vancouver';
-const DEFAULT_PM_OPENING_HOUR = 12;
+const DEFAULT_PM_OPENING_HOUR = 13;
 const PASS_TYPE_EXPIRY_HOURS = {
-  AM: 12,
+  AM: 13,
   PM: 0,
   DAY: 0
 };
@@ -588,6 +589,7 @@ const checkWarmup = function (event) {
   module.exports = {
     ACTIVE_STATUS,
     DEFAULT_BOOKING_DAYS_AHEAD,
+    PASS_HOLD_STATUS,
     EXPIRED_STATUS,
     PASS_TYPE_AM,
     PASS_TYPE_PM,
@@ -610,6 +612,7 @@ const checkWarmup = function (event) {
     getFacility,
     getFacilities,
     getPassesByStatus,
+    storeObject,
     expressionBuilder,
     visibleFilter,
     restoreAvailablePass,

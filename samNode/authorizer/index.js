@@ -88,7 +88,7 @@ function handleContext(authResponse, permissionObject, headers) {
   authResponse.context = {
     isAdmin: permissionObject?.isAdmin,
     userID: permissionObject?.email,
-    role: JSON.stringify(permissionObject?.roles),
+    roles: JSON.stringify(permissionObject?.roles),
     isAuthenticated: permissionObject?.isAuthenticated
   };
 

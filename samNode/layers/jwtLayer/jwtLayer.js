@@ -1,17 +1,6 @@
-const AWS = require('aws-sdk');
-const jose = require('node-jose');
 const jwt = require('jsonwebtoken');
 
 const SECRET = process.env.JWT_SECRET || 'defaultSecret';
-const PRIVATE_KEY = process.env.PRIVATE_KEY
-  ? JSON.parse(process.env.PRIVATE_KEY)
-  : {
-    kty: 'oct',
-    kid: 'gBdaS-G8RLax2qObTD94w',
-    use: 'enc',
-    alg: 'A256GCM',
-    k: 'FK3d8WvSRdxlUHs4Fs_xxYO3-6dCiUarBwiYNFw5hv8'
-  };
 const { logger } = require('/opt/baseLayer');
 
 const ALGORITHM = process.env.ALGORITHM || 'HS384';
@@ -51,36 +40,6 @@ function verifyJWT(token) {
   }
 }
 
-/**
- * Encrypts the given body using JSON Web Encryption (JWE).
- *
- * @param {Object} body - The body to be encrypted.
- * @returns {Promise<string>} - A promise that resolves to the encrypted data.
- */
-async function encrypt(body) {
-  const buff = Buffer.from(JSON.stringify(body));
-  const cr = await jose.JWE.createEncrypt(PRIVATE_KEY).update(buff).final();
-  return cr;
-}
-
-/**
- * Decrypts the given encrypted body using the provided private key.
- * @param {string} body - The encrypted body to decrypt.
- * @param {string} private_key - The private key used for decryption.
- * @returns {Promise<Object>} - A promise that resolves to the decrypted object.
- * @throws {Error} - If an error occurs during decryption.
- */
-async function decrypt(body, private_key) {
-  try {
-    const res = await jose.JWK.asKey(private_key, 'json');
-    const decrypted = await jose.JWE.createDecrypt(res).decrypt(body);
-    const decryptedObject = JSON.parse(decrypted.plaintext.toString('utf8'));
-    return decryptedObject;
-  } catch (e) {
-    logger.error(e);
-    throw e;
-  }
-}
 
 function generateRegistrationNumber(count) {
   // TODO: Make this better
@@ -89,6 +48,5 @@ function generateRegistrationNumber(count) {
 
 module.exports = {
   verifyJWT,
-  encrypt,
   generateRegistrationNumber
 };

@@ -18,7 +18,7 @@ const dynamodb = new AWS.DynamoDB(dboptions);
 
 const { runQuery, TABLE_NAME, sendResponse, checkWarmup, logger } = require('/opt/baseLayer');
 const { decodeJWT, resolvePermissions } = require('/opt/permissionLayer');
-const { convertRolesToMD5 } = require('/opt/exportAllPassUtil');
+const { convertRolesToMD5 } = require('/opt/exportAllPassLayer');
 
 const EXPORT_FUNCTION_NAME =
   process.env.EXPORT_FUNCTION_NAME || "parks-reso-api-api-exportAllPassInvokable";
@@ -41,7 +41,7 @@ exports.handler = async (event, context) => {
       return sendResponse(403, { msg: 'Unauthorized' });
     }
 
-    const sk = convertRolesToMD5(permissionObject.role, "export-");
+    const sk = convertRolesToMD5(permissionObject.roles, "export-");
 
     if (event?.queryStringParameters?.getJob) {
       logger.info("Requesting status of job:", event?.queryStringParameters?.getJob)
@@ -146,7 +146,7 @@ async function createJob(sk, permissionObject) {
     LogType: "None",
     Payload: JSON.stringify({
       jobId: sk,
-      roles: permissionObject.role,
+      roles: permissionObject.roles,
     }),
   };
   // Invoke generate report function
