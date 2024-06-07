@@ -47,7 +47,7 @@ async function sendTemplateSQS(facilityType, personalisation, passObject) {
 };
 
 async function sendExpirationSQS(){
-  logger.info("SQSQUE: ", process.env.SQSEXPIRY_QUEUE)
+  logger.info("SQS QUEUE: ", process.env.SQSEXPIRY_QUEUE)
   try {
     const params = {
       MessageBody: `SQS Message at ${(new Date()).toISOString()}`,

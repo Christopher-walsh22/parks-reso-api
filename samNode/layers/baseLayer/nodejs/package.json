@@ -1,11 +1,12 @@
 {
-    "name": "api-base-layer",
-    "version": "0.0.1",
-    "author": "?/////.",
-    "license": "MIT",
-    "dependencies": {
-      "aws-sdk": "^2.1441.0",
-      "luxon": "3.4.4",
-      "winston": "^3.7.2"
-    }
+  "name": "dup-api-base-layer",
+  "version": "1.0.0",
+  "author": "Digitalspace <contact@digitalspace.ca>",
+  "license": "MIT",
+  "dependencies": {
+    "aws-sdk": "^2.1441.0",
+    "luxon": "3.4.4",
+    "winston": "^3.7.2",
+    "@aws-sdk/client-dynamodb": "^3.44.0"
   }
+}

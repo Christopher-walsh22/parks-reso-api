@@ -1,7 +1,8 @@
-//Dynamo Vars
+// dynamoUtils Vars
 const AWS = require('aws-sdk');
 const { DateTime } = require('luxon');
-const TABLE_NAME = 'parksreso';
+const { DynamoDB } = require('@aws-sdk/client-dynamodb');
+const TABLE_NAME = process.env.TABLE_NAME || 'parksreso';
 const META_TABLE_NAME = process.env.META_TABLE_NAME || 'parksreso-meta';
 const METRICS_TABLE_NAME = process.env.METRICS_TABLE_NAME || 'parksreso-metrics';
 const AWS_REGION = process.env.AWS_REGION || "ca-central-1";
@@ -32,31 +33,24 @@ const PASS_TYPE_EXPIRY_HOURS = {
 const DEFAULT_BOOKING_DAYS_AHEAD = 3;
 const dynamodb = new AWS.DynamoDB(options);
 exports.dynamodb = new AWS.DynamoDB();
-console.log(dynamodb)
 
-//Logger vars
+// loggerUtil vars
 const { createLogger, format, transports } = require('winston');
 const { combine, timestamp } = format;
 const LEVEL = process.env.LOG_LEVEL || 'error';
 
+// dynamoUtils
 
-const logger = createLogger({
-  level: LEVEL,
-  format: combine(
-    timestamp(),
-    format.printf((info) => {
-      let meta = '';
-      let symbols = Object.getOwnPropertySymbols(info);
-      if (symbols.length == 2) {
-        meta = JSON.stringify(info[symbols[1]]);
-      }
-      return `${info.timestamp} ${[info.level.toUpperCase()]}: ${info.message} ${meta}`;
-    })
-  ),
-  transports: [new transports.Console()]
-});
+//Uses SDKV3 - No .promise()
+const dynamodb1 = new DynamoDB(options);
+exports.dynamodb1 = new DynamoDB();
 
-
+/**
+ * Sets the status of passes in the given array.
+ * @param {Array} passes - The array of passes.
+ * @param {string} status - The status to set for the passes.
+ * @returns {Promise<void>} - A promise that resolves when the status is set for all passes.
+ */
 async function setStatus(passes, status) {
   const currentPSTDateTime = DateTime.now().setZone(TIMEZONE);
   const currentTimeISO = currentPSTDateTime.toUTC().toISO();
@@ -311,6 +305,22 @@ async function storeObject(object, tableName = TABLE_NAME) {
 }
 
 /**
+ * Filters the query object based on visibility.
+ *
+ * @param {Object} queryObj - The query object to filter.
+ * @param {boolean} isAdmin - Indicates whether the user is an admin.
+ * @returns {Object} - The filtered query object.
+ */
+function visibleFilter(queryObj, isAdmin) {
+  logger.info('visibleFilter:', queryObj, isAdmin);
+  if (!isAdmin) {
+    queryObj.ExpressionAttributeValues[':visible'] = { BOOL: true };
+    queryObj.FilterExpression = 'visible =:visible';
+  }
+  return queryObj;
+};
+
+/**
  * Checks if a pass exists for the given parameters.
  *
  * @param {string} facilityName - The name of the facility.
@@ -538,17 +548,9 @@ async function restoreAvailablePass(pk, sk, orcNumber, shortPassDate, facilityNa
     throw new CustomError('Error updating pass', error);
   }
 };
+// End of dynamoUtils
 
-const visibleFilter = function (queryObj, isAdmin) {
-  logger.info('visibleFilter:', queryObj, isAdmin);
-  if (!isAdmin) {
-    queryObj.ExpressionAttributeValues[':visible'] = { BOOL: true };
-    queryObj.FilterExpression = 'visible =:visible';
-  }
-  return queryObj;
-};
-
-
+// responseUtils
 const sendResponse = function (code, data, context) {
   const response = {
     statusCode: code,
@@ -564,16 +566,6 @@ const sendResponse = function (code, data, context) {
 };
 
 /**
- * CustomError constructor function.
- * @param {string} message - The error message.
- * @param {number} statusCode - The status code of the error.
- */
-const CustomError = function (message, statusCode) {
-  this.message = message;
-  this.statusCode = statusCode;
-}
-
-/**
  * Checks if the event is a warmup event.
  * @param {object} event - The event object.
  * @returns {boolean} - True if the event is a warmup event, false otherwise.
@@ -585,6 +577,34 @@ const checkWarmup = function (event) {
     return false;
   }
 }
+
+/**
+ * CustomError constructor function.
+ * @param {string} message - The error message.
+ * @param {number} statusCode - The status code of the error.
+ */
+const CustomError = function (message, statusCode) {
+  this.message = message;
+  this.statusCode = statusCode;
+}
+// End of responseUtils
+
+// loggerUtils
+const logger = createLogger({
+  level: LEVEL,
+  format: combine(
+    timestamp(),
+    format.printf((info) => {
+      let meta = '';
+      let symbols = Object.getOwnPropertySymbols(info);
+      if (symbols.length == 2) {
+        meta = JSON.stringify(info[symbols[1]]);
+      }
+      return `${info.timestamp} ${[info.level.toUpperCase()]}: ${info.message} ${meta}`;
+    })
+  ),
+  transports: [new transports.Console()]
+});
 
   module.exports = {
     ACTIVE_STATUS,
@@ -623,3 +643,4 @@ const checkWarmup = function (event) {
     checkWarmup,
     CustomError
   };
+  

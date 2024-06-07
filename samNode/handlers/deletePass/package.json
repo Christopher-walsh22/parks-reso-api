@@ -1,0 +1,10 @@
+{
+    "name": "deletePassFunction",
+    "version": "1.0.0",
+    "author": "Digitalspace <contact@digitalspace.ca>",
+    "dependencies": {
+        "luxon": "3.4.4",
+        "aws-sdk": "^2.1441.0",
+        "jsonwebtoken": "^9.0.0"
+    }
+  }
