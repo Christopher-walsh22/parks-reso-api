@@ -4,6 +4,11 @@ const { sendResponse, checkWarmup } = require('/opt/responseLayer');
 
 exports.handler = async (event, context) => {
   logger.debug('Read Config', event);
+
+  if (event.httpMethod === 'OPTIONS') {
+    return sendResponse(200, {}, 'Success', null, context);
+  }
+  
   if (checkWarmup(event)) {
     return sendResponse(200, {});
   }

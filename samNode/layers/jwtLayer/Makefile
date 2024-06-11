@@ -1,4 +1,4 @@
-   build-JWTLayer:
+build-JWTLayer:
 	# copy dependency directory into artifacts directory
 	cp -r * "$(ARTIFACTS_DIR)" 
 	# remove makefile in artifacts directory

@@ -2,14 +2,21 @@ const AWS = require('aws-sdk');
 const jwt = require('jsonwebtoken');
 const axios = require('axios');
 
-const { runQuery, TABLE_NAME, expressionBuilder, sendResponse, logger } = require('/opt/baseLayer');
+const { runQuery, TABLE_NAME, expressionBuilder, sendResponse, logger, checkWarmup } = require('/opt/baseLayer');
 const { decodeJWT, resolvePermissions, getParkAccess } = require('/opt/permissionLayer');
 const { DateTime } = require('luxon');
 const ALGORITHM = process.env.ALGORITHM || "HS384";
 
 exports.handler = async (event, context) => {
   logger.debug('Read Pass', event);
+  
+  if (event.httpMethod === 'OPTIONS') {
+    return sendResponse(200, {}, 'Success', null, context);
+  }
 
+  if (checkWarmup(event)) {
+    return sendResponse(200, {});
+  }
   let queryObj = {
     TableName: TABLE_NAME
   };

@@ -8,6 +8,11 @@ exports.handler = async (event, context) => {
   logger.debug('event.queryStringParameters', event.queryStringParameters);
 
   try {
+
+    if (event.httpMethod === 'OPTIONS') {
+      return sendResponse(200, {}, 'Success', null, context);
+    }
+    
     if (!event.queryStringParameters || !event.queryStringParameters.park || !event.queryStringParameters.facility) {
       return sendResponse(400, { msg: 'Invalid Request' }, context);
     }

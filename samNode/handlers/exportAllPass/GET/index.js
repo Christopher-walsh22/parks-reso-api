@@ -12,7 +12,7 @@ if (IS_OFFLINE) {
 }
 const lambda = new AWS.Lambda(options);
 if (process.env.IS_OFFLINE) {
-  dboptions.endpoint = 'http://host.docker.internal:8000';
+  dboptions.endpoint = 'http://172.17.0.2:8000';
 }
 const dynamodb = new AWS.DynamoDB(dboptions);
 
@@ -29,6 +29,11 @@ const EXPIRY_TIME = process.env.EXPORT_EXPIRY_TIME
 
 exports.handler = async (event, context) => {
   logger.info('Export all pass', event);
+
+  if (event.httpMethod === 'OPTIONS') {
+    return sendResponse(200, {}, 'Success', null, context);
+  }
+
   if (checkWarmup(event)) {
     return sendResponse(200, {});
   }

@@ -1,7 +1,12 @@
 const { TABLE_NAME, runQuery, sendResponse, logger } = require('/opt/baseLayer');
 
-exports.handler = async function (event) {
+exports.handler = async function (event, context) {
     try {
+        
+        if (event.httpMethod === 'OPTIONS') {
+            return sendResponse(200, {}, 'Success', null, context);
+          }
+
         let queryObj = {
             TableName: TABLE_NAME
         };

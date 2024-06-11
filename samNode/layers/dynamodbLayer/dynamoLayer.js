@@ -9,7 +9,7 @@ const options = {
   region: 'ca-central-1'
 };
 
-options.endpoint = 'http://host.docker.internal:8000';
+options.endpoint = 'http://172.17.0.2:8000';
 const ACTIVE_STATUS = 'active';
 const RESERVED_STATUS = 'reserved';
 const EXPIRED_STATUS = 'expired';

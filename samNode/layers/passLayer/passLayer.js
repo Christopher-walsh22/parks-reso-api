@@ -40,8 +40,8 @@ async function sendTemplateSQS(facilityType, personalisation, passObject) {
 
   logger.info(
     `Pass successfully created. Registration number: ${JSON.stringify(
-      passObject?.Item['registrationNumber']
-    )}, Orcs: ${passObject.Item.pk}`
+      passObject?.registrationNumber
+    )}, Orcs: ${passObject?.pk}`
   );
   return passObject;
 };

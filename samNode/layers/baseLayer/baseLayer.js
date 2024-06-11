@@ -6,14 +6,14 @@ const TABLE_NAME = process.env.TABLE_NAME || 'parksreso';
 const META_TABLE_NAME = process.env.META_TABLE_NAME || 'parksreso-meta';
 const METRICS_TABLE_NAME = process.env.METRICS_TABLE_NAME || 'parksreso-metrics';
 const AWS_REGION = process.env.AWS_REGION || "ca-central-1";
-const DYNAMODB_ENDPOINT_URL = process.env.DYNAMODB_ENDPOINT_URL || "http://host.docker.internal:8000"
+const DYNAMODB_ENDPOINT_URL = process.env.DYNAMODB_ENDPOINT_URL || "http://172.17.0.2:8000"
 const options = {
   region: AWS_REGION,
   endpoint: DYNAMODB_ENDPOINT_URL
 };
 if (process.env.IS_OFFLINE === 'true') {
   // If offline point at local
-  options.endpoint = 'http://host.docker.internal:8000';
+  options.endpoint = 'http://172.17.0.2:8000';
 }
 
 const ACTIVE_STATUS = 'active';

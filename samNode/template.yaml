@@ -206,19 +206,6 @@ Resources:
     Metadata:
       BuildMethod: makefile
 
-  DynamoDBLayer:
-    Type: AWS::Serverless::LayerVersion
-    Properties:
-      LayerName: dynamodb
-      Description: Parks Data Register DynamoDB Utilities Layer
-      ContentUri: layers/dynamodb/
-      CompatibleRuntimes:
-        - nodejs18.x
-      LicenseInfo: 'Apache-2.0'
-      RetentionPolicy: Retain
-    Metadata:
-      BuildMethod: makefile
-
   ExportAllPassLayer:
     Type: AWS::Serverless::LayerVersion
     Properties:
@@ -323,31 +310,31 @@ Resources:
     Metadata:
       BuildMethod: makefile
 
-  # SMSLayer:
-  #   Type: AWS::Serverless::LayerVersion
-  #   Properties:
-  #     LayerName: smsUtil
-  #     Description: SMS Utilities Layer
-  #     ContentUri: layers/smsLayer/
-  #     CompatibleRuntimes:
-  #       - nodejs18.x
-  #     LicenseInfo: 'Apache-2.0'
-  #     RetentionPolicy: Retain
-  #   Metadata:
-  #     BuildMethod: makefile
-
-  # SQSLayer:
-  #   Type: AWS::Serverless::LayerVersion
-  #   Properties:
-  #     LayerName: sqsLayer
-  #     Description: SQS Utilities Layer
-  #     ContentUri: layers/sqsLayer/
-  #     CompatibleRuntimes:
-  #       - nodejs18.x
-  #     LicenseInfo: 'Apache-2.0'
-  #     RetentionPolicy: Retain
-  #   Metadata:
-  #     BuildMethod: makefile
+  SMSLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: smsUtil
+      Description: SMS Utilities Layer
+      ContentUri: layers/smsLayer/
+      CompatibleRuntimes:
+        - nodejs18.x
+      LicenseInfo: 'Apache-2.0'
+      RetentionPolicy: Retain
+    Metadata:
+      BuildMethod: makefile   
+  
+  SQSLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: sqsLayer
+      Description: SQS Utilities Layer
+      ContentUri: layers/sqsLayer/
+      CompatibleRuntimes:
+        - nodejs18.x
+      LicenseInfo: 'Apache-2.0'
+      RetentionPolicy: Retain
+    Metadata:
+      BuildMethod: makefile
 
   WebHookLayer:
     Type: AWS::Serverless::LayerVersion
@@ -469,6 +456,15 @@ Resources:
             Path: /export-all-pass
             Method: GET
             RestApiId: !Ref ApiDeployment
+        optionsExportAllPass:
+          Type: Api
+          Properties:
+            Path: /export-all-pass
+            Method: OPTIONS
+            RestApiId: !Ref ApiDeployment
+            Auth:
+              Authorizer: NONE
+              OverrideApiAuth: true
 
   ExportAllPassInvokableFunction:   
     Type: AWS::Serverless::Function
@@ -515,6 +511,10 @@ Resources:
             Path: /export-pass
             Method: OPTIONS
             RestApiId: !Ref ApiDeployment
+            Auth:
+              Authorizer: NONE
+              OverrideApiAuth: true
+          
 
   purgeExpired:
     Type: AWS::Serverless::Function
@@ -557,12 +557,30 @@ Resources:
             Path: /metrics
             Method: GET
             RestApiId: !Ref ApiDeployment
+
+  OptionsMetricsFunction:
+    Type: AWS::Serverless::Function
+    Properties: 
+      CodeUri: handlers/optionsMetrics/
+      Handler: index.handler
+      Environment:
+        Variables:
+          LOG_LEVEL: !Ref LogLevel
+      Layers:
+        - !Ref BaseLayer
+      Runtime: nodejs18.x
+      Architectures:
+        - x86_64
+      Events:
         ReadMetricsOptions:
           Type: Api
           Properties:
             Path: /metrics
             Method: OPTIONS
             RestApiId: !Ref ApiDeployment
+            Auth:
+              Authorizer: NONE
+              OverrideApiAuth: true
 
   ReadConfigFunction:
     Type: AWS::Serverless::Function
@@ -588,6 +606,15 @@ Resources:
           Properties:
             Path: /config
             Method: GET
+        readConfigOptions:
+          Type: Api
+          Properties:
+            Path: /config
+            Method: OPTIONS
+            RestApiId: !Ref ApiDeployment
+            Auth:
+              Authorizer: NONE
+              OverrideApiAuth: true
  
   ReadFacilityFunction:
     Type: AWS::Serverless::Function
@@ -819,8 +846,6 @@ Resources:
         - !Ref GCNotifyLayer
         - !Ref WebHookLayer
         - !Ref SMSLayer
-        - !Ref DynamoDBLayer
-        - !Ref LoggerLayer
       Runtime: nodejs18.x
       Architectures:
         - x86_64
@@ -1121,7 +1146,8 @@ Resources:
             Auth:
               Authorizer: NONE
               OverrideApiAuth: true
-  
+        
+        
   DeletePassFunction:
     Type: AWS::Serverless::Function
     Properties: 
@@ -1188,7 +1214,7 @@ Resources:
         MaxAge: "'600'"
       Auth:
         DefaultAuthorizer: KCAuthorizer
-        AddDefaultAuthorizerToCorsPreflight: false
+        AddDefaultAuthorizerToCorsPreflight: False
         Authorizers:
           KCAuthorizer:
             FunctionPayloadType: REQUEST
