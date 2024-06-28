@@ -3,7 +3,6 @@
     "version": "1.0.0",
     "author": "Digitalspace <contact@digitalspace.ca>",
     "dependencies": {
-        "aws-sdk": "^2.1441.0",
         "luxon": "3.4.4"
         }
   }

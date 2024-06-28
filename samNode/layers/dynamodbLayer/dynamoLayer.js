@@ -1,4 +1,4 @@
-const AWS = require('aws-sdk');
+const AWS = require('/opt/baseLayer');
 const { logger } = require('/opt/loggerLayer');
 const { DateTime } = require('luxon');
 

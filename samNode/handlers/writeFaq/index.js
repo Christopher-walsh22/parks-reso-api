@@ -1,6 +1,5 @@
-const AWS = require('aws-sdk');
-const { dynamodb, TABLE_NAME, sendResponse, logger } = require('/opt/baseLayer');
-const { decodeJWT, resolvePermissions, getParkAccess } = require('/opt/permissionLayer');
+const { dynamodb, TABLE_NAME, sendResponse, logger, unmarshall } = require('/opt/baseLayer');
+const { decodeJWT, resolvePermissions } = require('/opt/permissionLayer');
 
 exports.handler = async (event, context) => {
   if (!event?.headers) {
@@ -43,11 +42,13 @@ async function updateItem(obj, context) {
         TableName: TABLE_NAME,
         ConditionExpression: 'attribute_exists(pk)',
       };
-      const { Attributes } = await dynamodb.updateItem(updateParams).promise();
+      const { Attributes } = await // The `.promise()` call might be on an JS SDK v2 client API.
+      // If yes, please remove .promise(). If not, remove this comment.
+      dynamodb.updateItem(updateParams).promise();
       logger.info('Results:', Attributes);
-      return sendResponse(200, AWS.DynamoDB.Converter.unmarshall(Attributes), context);  
+      return sendResponse(200, unmarshall(Attributes), context);  
   }else{
-    throw new Error('FAQ property is missing in the input object');
+    throw new Error('FAQ property is missing in the Text object');
   }
   } catch (error) {
     logger.error('Error updating item:', error);

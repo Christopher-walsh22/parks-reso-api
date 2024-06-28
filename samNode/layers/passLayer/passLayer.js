@@ -1,13 +1,14 @@
 const qrcode = require('qrcode');
-const { runQuery, TABLE_NAME, TIMEZONE, getOne, DEFAULT_BOOKING_DAYS_AHEAD, DEFAULT_PM_OPENING_HOUR, logger, CustomError } = require('/opt/baseLayer');
+const { runQuery, TABLE_NAME, TIMEZONE, getOne, DEFAULT_BOOKING_DAYS_AHEAD, DEFAULT_PM_OPENING_HOUR, logger, CustomError, unmarshall, sqsSendMessage } = require('/opt/baseLayer');
 const { DateTime } = require('luxon');
-const AWS = require('aws-sdk');
+const IS_OFFLINE = require('/opt/baseLayer')
+
+//const { dynamodb } = require('../BaseLayer/baseLayer');
 
 // default opening/closing hours in 24h time
-const options = {
-  region: process.env.AWS_REGION || 'ca-central-1'
-};
-const sqs = new AWS.SQS(options);
+// const options = {
+//   region: process.env.AWS_REGION || 'ca-central-1'
+// };
 
 // default opening/closing hours in 24h time
 const DEFAULT_AM_OPENING_HOUR = 7;
@@ -54,7 +55,12 @@ async function sendExpirationSQS(){
       QueueUrl: process.env.SQSEXPIRY_QUEUE,
     };
     logger.info("Sending SQS");
-    await sqs.sendMessage(params).promise();
+    //remove promises? 
+    if (process.env.IS_OFFLINE === 'true'){
+      //No sqs for local
+      return
+    }
+    await sqsSendMessage(params);
   } catch (e) {
     logger.error(e);
   }
@@ -86,7 +92,8 @@ async function sendSQSMessage(service, payload) {
       }
     };
     logger.info("Sending SQS");
-    await sqs.sendMessage(params).promise();
+    console.log("ABOUT TO SEND SQSMESSAGE")
+    await sqsSendMessage(params);
   } catch (e) {
     logger.error(e);
   }
@@ -158,11 +165,11 @@ async function isBookingAllowed(orcs, facilitySk, date, type) {
 
   // Get park.
   logger.debug('Get park:', orcs);
-  const park = AWS.DynamoDB.Converter.unmarshall(await getOne('park', orcs));
+  const park = unmarshall(await getOne('park', orcs));
 
   // Get facility.
   logger.debug('Get facility:', `facility::${orcs}`, facilitySk);
-  const facility = AWS.DynamoDB.Converter.unmarshall(await getOne(`facility::${orcs}`, facilitySk));
+  const facility = unmarshall(await getOne(`facility::${orcs}`, facilitySk));
 
   // If park or facility doesn't exist, deny.
   if (!park || !facility) {

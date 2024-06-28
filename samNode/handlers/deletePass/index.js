@@ -1,4 +1,4 @@
-const AWS = require('aws-sdk');
+
 const jwt = require('jsonwebtoken');
 const { DateTime } = require('luxon');
 
@@ -100,7 +100,7 @@ exports.handler = async (event, context) => {
             sk: { S: decodedToken.dateselector }
           },
           ExpressionAttributeValues: {
-            ':passIncreaseBy': AWS.DynamoDB.Converter.input(decodedToken.numberOfGuests)
+            ':passIncreaseBy': {N: decodedToken.numberOfGuests.toString() } 
           },
           ExpressionAttributeNames: {
             '#type': decodedToken.type,
@@ -116,7 +116,9 @@ exports.handler = async (event, context) => {
 
       logger.info('Transaction Object length:', transactionObj.length);
 
-      const res = await dynamodb.transactWriteItems(transactionObj).promise();
+      const res = await // The `.promise()` call might be on an JS SDK v2 client API.
+      // If yes, please remove .promise(). If not, remove this comment.
+      dynamodb.transactWriteItems(transactionObj).promise();
       logger.debug('res:', res);
 
       // Prune audit
@@ -223,7 +225,9 @@ exports.handler = async (event, context) => {
 
         logger.info("Transaction Object Length:", transactionObj.length);
 
-        const res = await dynamodb.transactWriteItems(transactionObj).promise();
+        const res = await // The `.promise()` call might be on an JS SDK v2 client API.
+        // If yes, please remove .promise(). If not, remove this comment.
+        dynamodb.transactWriteItems(transactionObj).promise();
         logger.debug('res:', res);
 
         logger.info("transactWriteItems Complete:");

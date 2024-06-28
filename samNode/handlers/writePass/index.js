@@ -1,5 +1,5 @@
-const AWS = require('aws-sdk');
 const jwt = require('jsonwebtoken');
+const { TransactWriteItemsCommand, TransactWriteItems } = require('@aws-sdk/client-dynamodb');
 const { DateTime } = require('luxon');
 const {
   DEFAULT_PM_OPENING_HOUR,
@@ -16,7 +16,9 @@ const {
   sendResponse,
   checkWarmup,
   CustomError,
-  logger
+  logger,
+  unmarshall,
+  dynamoClient
 } = require('/opt/baseLayer');
 const {
   decodeJWT,
@@ -33,8 +35,8 @@ const {
   sendTemplateSQS,
   sendExpirationSQS
 } = require('/opt/passLayer');
-const { createNewReservationsObj } = require('/opt/reservationLayer');
-const { generateRegistrationNumber } = require('/opt/jwtLayer');
+const { createNewReservationsObj } = require('/opt/reservationLayer'); 
+const { generateRegistrationNumber } = require('/opt/jwtLayer')
 const SECRET = process.env.JWT_SECRET || 'defaultSecret';
 const ALGORITHM = process.env.ALGORITHM || 'HS384';
 const HOLD_PASS_TIMEOUT = process.env.HOLD_PASS_TIMEOUT || '7m';
@@ -63,6 +65,7 @@ exports.handler = async (event, context) => {
     let newObject = JSON.parse(event.body);
     // Check for update method (check this pass in)
     if (event.httpMethod === 'PUT') {
+      console.log("In the put part of the write pass! ")
       return await putPassHandler(event, permissionObject, newObject);
     } else if (event.httpMethod === 'OPTIONS') {
       return sendResponse(200, {});
@@ -75,7 +78,9 @@ exports.handler = async (event, context) => {
     if (newObject.commit) {
       return await handleCommitPass(newObject, permissionObject.isAdmin);
     } else {
-      return await handleHoldPass(newObject, permissionObject.isAdmin);
+      let value = await handleHoldPass(newObject, permissionObject.isAdmin);
+      console.log("End of booking Value: ", value)
+      return value
     }
   } catch (err) {
     logger.info('Operation Failed');
@@ -93,6 +98,7 @@ exports.handler = async (event, context) => {
  * @throws {CustomError} - If there is an error during the commit process.
  */
 async function handleCommitPass(newObject, isAdmin) {
+  console.log("HANDLE COMMIT PASS: ")
   const {
     parkOrcs,
     firstName,
@@ -333,7 +339,7 @@ async function handleHoldPass(newObject, isAdmin) {
 
     logger.info('Creating pass object');
     const registrationNumber = generateRegistrationNumber(10);
-
+    console.log("after generateRegistration number: ")
     // // Create the base pass object
     let passObject = createPassObject(
       parkData,
@@ -351,7 +357,7 @@ async function handleHoldPass(newObject, isAdmin) {
       facilityData,
       currentPSTDateTime
     );
-
+    console.log("After createPassObject")
     // Here, we must create/update a reservation object
     // https://github.com/bcgov/parks-reso-api/wiki/Models
 
@@ -392,32 +398,35 @@ async function handleHoldPass(newObject, isAdmin) {
 
     // Perform the transaction, retrying if necessary
     await transactWriteWithRetries(transactionObj); // TODO: Set a retry limit if 3 isn't enough.
-
+    console.log("Past write transaction with retry")
     logger.info('Transaction complete');
 
     delete passObject.Item['audit'];
 
     // Return the jwt'd pass object for the front end with a 7 minute expiry time.
     passObject.Item['parkOrcs'] = { S: parkOrcs };
-    const holdPassJwt = jwt.sign(AWS.DynamoDB.Converter.unmarshall(passObject.Item),
+    const holdPassJwt = jwt.sign(unmarshall(passObject.Item),
                                  SECRET,
                                  { algorithm: ALGORITHM, expiresIn: HOLD_PASS_TIMEOUT});
 
     let expirationTime = getExpiryTime(holdPassJwt);
     // Store the jwt, as well as the registration number, and the expiry time in DynamoDB
+    console.log("About to store the hold pass")
     await storeHoldPassJwt(holdPassJwt, expirationTime);
 
     //Send message to expiration queue
     try {
       logger.info('Posting to expirationQueue');
-      await sendExpirationSQS();
+      console.log("Enter the sendExpirationSQS")
+      await sendExpirationSQS();  
+      console.log("exiting the sendExpirationSQS")
     } catch (err) {
       logger.info(`Error with the ExpirationSQS`);
       logger.error(err.response?.data || err);
     }
 
 
-    // TODO: Setup a job to prune JWTs from the database after 7m. Remove the held passes (pk::xxxx, sk: 112345)
+    // TODO: Setup a job to prune  JWTs from the database after 7m. Remove the held passes (pk::xxxx, sk: 112345)
     return sendResponse(200, holdPassJwt);
   } catch (error) {
     logger.info('Operation Failed');
@@ -433,9 +442,11 @@ async function handleHoldPass(newObject, isAdmin) {
  */
 async function storeHoldPassJwt(holdPassJwt, expirationTime) {
   try {
+    console.log("Am I here? Storeholdpass")
     let retries = 0;
     let success = false;
     while (retries < 3 && !success) {
+      console.log("In while, store the object")
       try {
         await storeObject({
           'pk': 'jwt',
@@ -467,51 +478,90 @@ async function storeHoldPassJwt(holdPassJwt, expirationTime) {
 async function transactWriteWithRetries(transactionObj, maxRetries = 3) {
   let retryCount = 0;
   let res;
-  do {
-    try {
-      logger.info('Writing Transact obj.');
-      logger.debug('Transact obj:', JSON.stringify(transactionObj));
-      res = await dynamodb.transactWriteItems(transactionObj).promise();
-      logger.debug('Res:', res);
-      break; // Break out of the loop if transaction succeeds
-    } catch (error) {
-      logger.info('Transaction failed:', error.code);
-      logger.error(error);
-      if (error.code === 'TransactionCanceledException') {
-        let cancellationReasons = error.message.slice(error.message.lastIndexOf('[') + 1);
-        cancellationReasons = cancellationReasons.slice(0, -1);
-        cancellationReasons = cancellationReasons.split(', ');
-        let message = error.message;
-        let reasonIndex = this.cancellationReasons.findIndex((i) => i !== 'None');
-        if (reasonIndex > -1) {
-          switch (reasonIndex) {
-            case 0:
-              logger.info('Facility is currently locked');
-              message = 'An error has occured, please try again.';
-              break;
-            case 1:
-              logger.info(`Sold out of passes: ${parkData.name} / ${facilityName}`);
-              message =
-                'We have sold out of allotted passes for this time, please check back on the site from time to time as new passes may come available.';
-              break;
-            case 2:
-            default:
-              message = 'Error creating pass.';
-              logger.info(message);
-              break;
+  try{
+    do {
+        console.log("#")
+      //   logger.info('Writing Transact obj.');
+      //   logger.debug('Transact obj:', JSON.stringify(transactionObj));
+      //   res = await // The `.promise()` call might be on an JS SDK v2 client API.
+      //   // If yes, please remove .promise(). If not, remove this comment.
+      //   // The `.promise()` call might be on an JS SDK v2 client API.
+      //   // If yes, please remove .promise(). If not, remove this comment.
+      //   transactWriteItems(transactionObj);
+      //   logger.debug('Res:', res);
+      //   break; // Break out of the loop if transaction succeeds
+
+      try {
+        logger.info('Writing Transact obj.');
+        logger.debug('Transact obj:', JSON.stringify(transactionObj));
+        console.log(JSON.stringify(transactionObj, null, 3))
+        const command = new TransactWriteItemsCommand({
+          TransactItems: transactionObj.TransactItems
+        });
+        console.log("This is after json transactionObj")
+
+        // TransactWriteItems(transactionObj)
+        //console.log("POST TRANSSACT COMMAND: ", JSON.stringify(command, null, 4));
+        //DO IS_OFFLINE CHECK HERE  REMOVE  setTimeOut FOR PROD/TEST/DEV
+        
+        //res = await dynamodb.send(command);
+        //setTimeout(1000)
+        // setTimeout(async () => {await dynamodb.send(command);}, 1000)
+        res = await dynamoClient.send(command)
+        console.log("AFTER SEND")
+        //res = await dynamodb.send(command);
+        console.log("Res from first dynamodb send (transactwriteitemscommand): ", res)
+        console.log("Past the dynamodbsend")
+        logger.debug('Res:', res);
+        return
+      } catch (error) {
+        console.log("Catch on 515")
+        logger.info('Transaction failed:', error.code);
+        logger.error(error);
+        if (error.code === 'TransactionCanceledException') {
+          let cancellationReasons = error.message.slice(error.message.lastIndexOf('[') + 1);
+          cancellationReasons = cancellationReasons.slice(0, -1);
+          cancellationReasons = cancellationReasons.split(', ');
+          let message = error.message;
+          let reasonIndex = this.cancellationReasons.findIndex((i) => i !== 'None');
+          if (reasonIndex > -1) {
+            switch (reasonIndex) {
+              case 0:
+                logger.info('Facility is currently locked');
+                message = 'An error has occured, please try again.';
+                break;
+              case 1:
+                logger.info(`Sold out of passes: ${parkData.name} / ${facilityName}`);
+                message =
+                  'We have sold out of allotted passes for this time, please check back on the site from time to time as new passes may come available.';
+                break;
+              case 2:
+              default:
+                message = 'Error creating pass.';
+                logger.info(message);
+                break;
+            }
+            console.log("Throwing error on line 539")
+            throw new CustomError(message, 400);
           }
-          throw new CustomError(message, 400);
+          if (retryCount === maxRetries) {
+            console.log("Throw error on line 543")
+            logger.info('Retry limit reached');
+            throw new CustomError(message, 400);
+          }
+          console.log("Incrementing retry count")
+          retryCount++;
+        } else {
+          console.log("Throwing on 550")
+          throw new CustomError(error.message, 400);
         }
-        if (retryCount === maxRetries) {
-          logger.info('Retry limit reached');
-          throw new CustomError(message, 400);
-        }
-        retryCount++;
-      } else {
-        throw new CustomError(error.message, 400);
       }
-    }
-  } while (retryCount < maxRetries);
+    } while (retryCount < maxRetries);
+  }catch(error){
+    console.log("catching")
+    console.log(error)
+  }
+  console.log("Dropping on line 555")
 };
 
 function checkFacilityData(facilityData, numberOfGuests) {
@@ -597,12 +647,12 @@ function createPassObject(parkData,
   passObject.Item['shortPassDate'] = { S: bookingPSTShortDate };
   passObject.Item['type'] = { S: type };
   passObject.Item['registrationNumber'] = { S: registrationNumber };
-  passObject.Item['numberOfGuests'] = AWS.DynamoDB.Converter.input(numberOfGuests);
+  passObject.Item['numberOfGuests'] = {N: numberOfGuests.toString() }; //No more input function for v3
   if (status != null) {
     passObject.Item['passStatus'] = { S: status };
   }
   if (phoneNumber != null) {
-    passObject.Item['phoneNumber'] = AWS.DynamoDB.Converter.input(phoneNumber);
+    passObject.Item['phoneNumber'] = { S: phoneNumber };
   }
   passObject.Item['facilityType'] = { S: facilityData.type };
   passObject.Item['isOverbooked'] = { BOOL: false };
@@ -663,7 +713,7 @@ function checkForHardCodeAdjustment(newObject) {
  * @returns {Object} - The transaction object.
  */
 function generateTrasactionObject(parkData, facilityName, reservationsObjectPK, bookingPSTShortDate, type, numberOfGuests, passObject = undefined) {
-  
+  console.log("Are we here now?")
   let TransactItems = [
     {
       ConditionCheck: {
@@ -687,7 +737,7 @@ function generateTrasactionObject(parkData, facilityName, reservationsObjectPK, 
           sk: { S: bookingPSTShortDate }
         },
         ExpressionAttributeValues: {
-          ':dec': AWS.DynamoDB.Converter.input(numberOfGuests)
+          ':dec': { N: numberOfGuests.toString() }
         },
         ExpressionAttributeNames: {
           '#type': type,
@@ -706,7 +756,7 @@ function generateTrasactionObject(parkData, facilityName, reservationsObjectPK, 
       Put: passObject
     });
   }
-
+  console.log("Returning transact Items")
   return {
     TransactItems
   };
@@ -743,8 +793,12 @@ async function modifyPassCheckInStatus(pk, sk, checkedIn) {
     updateParams.UpdateExpression += ' remove checkedInTime';
   }
 
-  const res = await dynamodb.updateItem(updateParams).promise();
-  return sendResponse(200, AWS.DynamoDB.Converter.unmarshall(res.Attributes));
+  const res = await // The `.promise()` call might be on an JS SDK v2 client API.
+  // If yes, please remove .promise(). If not, remove this comment.
+  // The `.promise()` call might be on an JS SDK v2 client API.
+  // If yes, please remove .promise(). If not, remove this comment.
+  dynamodb.updateItem(updateParams)
+  return sendResponse(200, unmarshall(res.Attributes));
 }
 
 /**

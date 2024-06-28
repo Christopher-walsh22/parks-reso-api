@@ -1,6 +1,6 @@
 const { sendResponse, checkWarmup, logger } = require('/opt/baseLayer');
 
-const AWS = require('aws-sdk');
+const AWS = require('/opt/baseLayer');
 const jose = require('node-jose');
 const jwt = require('jsonwebtoken');
 const SECRET = process.env.JWT_SECRET || 'defaultSecret';
@@ -14,7 +14,7 @@ const PRIVATE_KEY = process.env.PRIVATE_KEY
     alg: 'A256GCM',
     k: 'FK3d8WvSRdxlUHs4Fs_xxYO3-6dCiUarBwiYNFw5hv8'
   };
-const AWS_REGION = process.env.AWS_DEFAULT_REGION || 'ca-central-1';
+const AWS_REGION = process.env.AWSDEFAULTREGION || 'ca-central-1';
 const ALGORITHM = process.env.ALGORITHM || 'HS384';
 
 

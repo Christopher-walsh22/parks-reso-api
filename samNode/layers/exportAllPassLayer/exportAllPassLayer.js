@@ -1,5 +1,5 @@
-const AWS = require("aws-sdk");
-const { dynamodb } = require("/opt/baseLayer");
+const AWS = require("/opt/baseLayer");
+const { dynamodb, marshall } = require("/opt/baseLayer");
 const crypto = require("crypto");
 
 function convertRolesToMD5(roles, prefix = "") {
@@ -19,7 +19,7 @@ function convertRolesToMD5(roles, prefix = "") {
 async function updateJobEntry(jobObj, tableName) {
   jobObj.pk = "job";
 
-  let newObject = AWS.DynamoDB.Converter.marshall(jobObj);
+  let newObject = marshall(jobObj);
   let putObject = {
     TableName: tableName,
     Item: newObject,

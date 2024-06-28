@@ -1,6 +1,3 @@
-const AWS = require('aws-sdk');
-const s3 = new AWS.S3();
-
 const IS_OFFLINE = process.env.IS_OFFLINE && process.env.IS_OFFLINE === "true" ? true : false;
 
 const options = {};
@@ -10,13 +7,13 @@ if (IS_OFFLINE) {
   // For local we use port 3002 because we're hitting an invokable
   options.endpoint = "http://localhost:3002";
 }
-const lambda = new AWS.Lambda(options);
-if (process.env.IS_OFFLINE) {
-  dboptions.endpoint = 'http://172.17.0.2:8000';
-}
-const dynamodb = new AWS.DynamoDB(dboptions);
+// const lambda = new AWS.Lambda(options);
+// if (process.env.IS_OFFLINE) {
+//   dboptions.endpoint = 'http://172.17.0.2:8000';
+// }
+// const dynamodb = new AWS.DynamoDB(dboptions);
 
-const { runQuery, TABLE_NAME, sendResponse, checkWarmup, logger } = require('/opt/baseLayer');
+const { runQuery, TABLE_NAME, sendResponse, checkWarmup, logger, marshall, s3, dynamodb, lambda } = require('/opt/baseLayer');
 const { decodeJWT, resolvePermissions } = require('/opt/permissionLayer');
 const { convertRolesToMD5 } = require('/opt/exportAllPassLayer');
 
@@ -101,7 +98,7 @@ exports.handler = async (event, context) => {
         },
         ConditionExpression:
           "(attribute_not_exists(pk) AND attribute_not_exists(sk)) OR progressPercentage = :percent",
-        Item: AWS.DynamoDB.Converter.marshall({
+        Item: marshall({
           pk: "job",
           sk: sk,
           progressPercentage: 0,
@@ -111,7 +108,9 @@ exports.handler = async (event, context) => {
       logger.debug(putObject);
       let res = null;
       try {
-        res = await dynamodb.putItem(putObject).promise();
+        res = await // The `.promise()` call might be on an JS SDK v2 client API.
+        // If yes, please remove .promise(). If not, remove this comment.
+        dynamodb.putItem(putObject).promise();
         // Check if there's already a report being generated.
         // If there are is no instance of a job or the job is 100% complete, generate a report.
         logger.debug("Creating a new export job.");
@@ -155,5 +154,7 @@ async function createJob(sk, permissionObject) {
     }),
   };
   // Invoke generate report function
-  await lambda.invoke(params).promise();
+  await // The `.promise()` call might be on an JS SDK v2 client API.
+  // If yes, please remove .promise(). If not, remove this comment.
+  lambda.invoke(params).promise();
 }

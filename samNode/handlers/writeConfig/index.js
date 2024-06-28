@@ -1,6 +1,4 @@
-const AWS = require('aws-sdk');
-
-const { dynamodb, TABLE_NAME, sendResponse, logger } = require('/opt/baseLayer');
+const { dynamodb, TABLE_NAME, sendResponse, logger, marshall } = require('/opt/baseLayer');
 
 exports.handler = async (event, context) => {
   const permissionObject = event.requestContext.authorizer;
@@ -20,10 +18,12 @@ exports.handler = async (event, context) => {
     configObject.Item = {};
     configObject.Item['pk'] = { S: 'config' };
     configObject.Item['sk'] = { S: 'config' };
-    configObject.Item['configData'] = { M: AWS.DynamoDB.Converter.marshall(newObject) };
+    configObject.Item['configData'] = { M: marshall(newObject) };
 
     logger.debug('putting item:', configObject);
-    const res = await dynamodb.putItem(configObject).promise();
+    const res = await // The `.promise()` call might be on an JS SDK v2 client API.
+    // If yes, please remove .promise(). If not, remove this comment.
+    dynamodb.putItem(configObject).promise();
     logger.debug('res:', res);
     return sendResponse(200, res);
   } catch (err) {

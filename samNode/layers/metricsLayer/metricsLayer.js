@@ -1,6 +1,6 @@
-const AWS = require('aws-sdk');
+const AWS = require('/opt/baseLayer');
 const { DateTime } = require("luxon");
-const { METRICS_TABLE_NAME, TABLE_NAME, TIMEZONE, runQuery, dynamodb, getOne, logger } = require("/opt/baseLayer");
+const { METRICS_TABLE_NAME, TABLE_NAME, TIMEZONE, runQuery, dynamodb, getOne, logger, marshall, unmarshall } = require("/opt/baseLayer");
 const { checkPassesRequired } = require("/opt/reservationLayer");
 
 const MAX_TRANSACTION_SIZE = 25;
@@ -124,7 +124,7 @@ async function postAllMetrics(metrics) {
         try {
           let metricsPutObj = {
             TableName: METRICS_TABLE_NAME,
-            Item: AWS.DynamoDB.Converter.marshall(metric)
+            Item: marshall(metric)
           }
           transactionChunk.TransactItems.push({
             Put: metricsPutObj
@@ -185,7 +185,7 @@ async function getPassesForDate(facility, date) {
 async function getReservationObjectForDate(parkSk, facilitySk, date) {
   try {
     const reservation = await getOne(`reservations::${parkSk}::${facilitySk}`, date);
-    return AWS.DynamoDB.Converter.unmarshall(reservation);
+    return unmarshall(reservation);
   } catch (error) {
     logger.error(`Error retrieving reservation object for ${facilitySk}: ${error}`);
     return;

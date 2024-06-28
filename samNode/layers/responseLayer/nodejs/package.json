@@ -2,7 +2,5 @@
     "name": "dup-api-response-layer",
     "version": "1.0.0",
     "author": "Digitalspace <contact@digitalspace.ca>",
-    "license": "MIT",
-    "dependencies": {
-    }
+    "license": "MIT"
   }

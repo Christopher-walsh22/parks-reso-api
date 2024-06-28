@@ -1,4 +1,3 @@
-const AWS = require('aws-sdk');
 const { runQuery, TABLE_NAME, visibleFilter, logger, sendResponse, checkWarmup } = require('/opt/baseLayer');
 const { decodeJWT, roleFilter, resolvePermissions } = require('/opt/permissionLayer');
 

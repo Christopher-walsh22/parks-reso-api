@@ -1,9 +1,9 @@
-const AWS = require('aws-sdk');
-const { logger } = require('/opt/baseLayer');
+const AWS = require('/opt/baseLayer');
+const { logger, sqsSendMessage } = require('/opt/baseLayer');
 const options = {
   region: process.env.AWS_REGION || 'ca-central-1'
 };
-const sqs = new AWS.SQS(options)
+
 
 exports.sendSQSMessage = async function (service, payload) {
   logger.info("SQSQUEUE:", process.env.SQSQUEUENAME);
@@ -31,7 +31,10 @@ exports.sendSQSMessage = async function (service, payload) {
       }
     }
     logger.info("Sending SQS");
-    await sqs.sendMessage(params).promise();
+    if (process.env.IS_OFFLINE === 'true'){
+      return
+    }
+    await sqsSendMessage(params);
   } catch (e) {
     logger.error(e);
   }

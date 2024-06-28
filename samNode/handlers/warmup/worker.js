@@ -1,5 +1,4 @@
-const AWS = require('aws-sdk');
-const lambda = new AWS.Lambda();
+const invoke = require('/opt/baseLayer')
 const { parentPort, workerData } = require('worker_threads');
 
 const config = workerData.config;
@@ -48,7 +47,7 @@ if (concurrency > 1) {
         };
 
         // Add promise to invocations array
-        invocations.push(lambda.invoke(params).promise());
+        invocations.push(invoke(params));
     } // end for
 
     // Invoke concurrent functions

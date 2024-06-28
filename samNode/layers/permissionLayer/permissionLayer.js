@@ -67,7 +67,6 @@ exports.getExpiryTime = function (token) {
 };
 
 exports.verifyHoldToken = function (token, secret) {
-  console.log("verifyHoldToken", token, secret);
   let decodedToken;
   try {
     decodedToken = jwt.verify(token, secret);

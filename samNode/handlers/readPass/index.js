@@ -1,4 +1,4 @@
-const AWS = require('aws-sdk');
+
 const jwt = require('jsonwebtoken');
 const axios = require('axios');
 
@@ -52,22 +52,20 @@ exports.handler = async (event, context) => {
         queryObj.IndexName = 'manualLookup-index';
         queryObj.ExpressionAttributeValues[':shortPassDate'] = { S: shortDate };
         queryObj.ExpressionAttributeValues[':facilityName'] = { S: event.queryStringParameters.facilityName };
-        queryObj.ExpressionAttributeValues[':passStatus'] = AWS.DynamoDB.Converter.input('hold');
+        queryObj.ExpressionAttributeValues[':passStatus'] = {S: 'hold'};
         queryObj.KeyConditionExpression = 'shortPassDate =:shortPassDate AND facilityName =:facilityName';
         queryObj.FilterExpression = 'passStatus <> :passStatus';
       } else {
         queryObj.ExpressionAttributeValues = {};
         queryObj.ExpressionAttributeValues[':pk'] = { S: 'pass::' + event.queryStringParameters.park };
         queryObj.ExpressionAttributeValues[':facilityName'] = { S: event.queryStringParameters.facilityName };
-        queryObj.ExpressionAttributeValues[':passStatus'] = AWS.DynamoDB.Converter.input('hold');
+        queryObj.ExpressionAttributeValues[':passStatus'] = {S: 'hold'};
         queryObj.KeyConditionExpression = 'pk =:pk';
         queryObj.FilterExpression = 'facilityName =:facilityName and passStatus <> :passStatus';
       }
 
       if (event.queryStringParameters.passType) {
-        queryObj.ExpressionAttributeValues[':passType'] = AWS.DynamoDB.Converter.input(
-          event.queryStringParameters.passType
-        );
+        queryObj.ExpressionAttributeValues[':passType'] = {S: event.queryStringParameters.passType.toString() };
         queryObj = checkAddExpressionAttributeNames(queryObj);
         queryObj.ExpressionAttributeNames['#theType'] = 'type';
         queryObj.FilterExpression += expressionBuilder('AND', queryObj.FilterExpression, '#theType =:passType');
@@ -79,7 +77,7 @@ exports.handler = async (event, context) => {
         const statusObj = {};
         for (let [index, status] of statusList.entries()) {
           const statusName = ':passStatus' + index;
-          statusObj[statusName.toString()] = AWS.DynamoDB.Converter.input(status);
+          statusObj[statusName.toString()] = {S: status.toString()};
         }
         queryObj = checkAddExpressionAttributeNames(queryObj);
         queryObj.ExpressionAttributeNames['#theStatus'] = 'passStatus';
@@ -92,10 +90,7 @@ exports.handler = async (event, context) => {
       }
       // Filter reservation number
       if (event.queryStringParameters.reservationNumber) {
-        queryObj.ExpressionAttributeValues[':registrationNumber'] = AWS.DynamoDB.Converter.input(
-          // BRS-748 will address inconsistent mapping of registrationNumber to reservationNumber
-          event.queryStringParameters.reservationNumber
-        );
+        queryObj.ExpressionAttributeValues[':registrationNumber'] = {S: event.queryStringParameters.reservationNumber.toString() };
         queryObj.FilterExpression += expressionBuilder(
           'AND',
           queryObj.FilterExpression,
@@ -105,9 +100,7 @@ exports.handler = async (event, context) => {
       // Filter first/last
       if (event.queryStringParameters.firstName) {
         queryObj = checkAddExpressionAttributeNames(queryObj);
-        queryObj.ExpressionAttributeValues[':searchFirstName'] = AWS.DynamoDB.Converter.input(
-          event.queryStringParameters.firstName.toLowerCase()
-        );
+        queryObj.ExpressionAttributeValues[':searchFirstName'] = {S: event.queryStringParameters.firstName.toLowerCase() }; 
         queryObj.FilterExpression += expressionBuilder(
           'AND',
           queryObj.FilterExpression,
@@ -116,9 +109,7 @@ exports.handler = async (event, context) => {
       }
       if (event.queryStringParameters.lastName) {
         queryObj = checkAddExpressionAttributeNames(queryObj);
-        queryObj.ExpressionAttributeValues[':searchLastName'] = AWS.DynamoDB.Converter.input(
-          event.queryStringParameters.lastName.toLowerCase()
-        );
+        queryObj.ExpressionAttributeValues[':searchLastName'] = {S: event.queryStringParameters.lastName.toLowerCase() };
         queryObj.FilterExpression += expressionBuilder(
           'AND',
           queryObj.FilterExpression,
@@ -128,7 +119,7 @@ exports.handler = async (event, context) => {
       // Filter email
       if (event.queryStringParameters.email) {
         queryObj = checkAddExpressionAttributeNames(queryObj);
-        queryObj.ExpressionAttributeValues[':email'] = AWS.DynamoDB.Converter.input(event.queryStringParameters.email);
+        queryObj.ExpressionAttributeValues[':email'] = {S: event.queryStringParameters.email };
         queryObj.FilterExpression += expressionBuilder('AND', queryObj.FilterExpression, 'email =:email');
       }
       // Filter overbooked status
@@ -352,8 +343,8 @@ const paginationHandler = function (queryObj, event) {
   if (event.queryStringParameters.ExclusiveStartKeyPK && event.queryStringParameters.ExclusiveStartKeySK) {
     // Add the next page.
     queryObj.ExclusiveStartKey = {
-      pk: AWS.DynamoDB.Converter.input(event.queryStringParameters.ExclusiveStartKeyPK),
-      sk: AWS.DynamoDB.Converter.input(event.queryStringParameters.ExclusiveStartKeySK)
+      pk: {S: event.queryStringParameters.ExclusiveStartKeyPK},
+      sk: {S: event.queryStringParameters.ExclusiveStartKeySK}
     };
   }
   return queryObj;

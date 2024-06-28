@@ -1,5 +1,4 @@
-const AWS = require('aws-sdk');
-const s3 = new AWS.S3();
+const { S3 } = require('@aws-sdk/client-s3');
 const csvjson = require('csvjson');
 const { runQuery, sendResponse, logger } = require('/opt/baseLayer');
 const { decodeJWT, resolvePermissions } = require('/opt/permissionLayer');
@@ -34,7 +33,7 @@ exports.handler = async (event, context) => {
 
       // Filter Date
       if (event.queryStringParameters.date) {
-        queryObj.ExpressionAttributeValues[':theDate'] = AWS.DynamoDB.Converter.input(event.queryStringParameters.date);
+        queryObj.ExpressionAttributeValues[':theDate'] = event.queryStringParameters.date;
         queryObj.FilterExpression += ' AND shortPassDate =:theDate';
       }
       // Filter Multiple Statuses
@@ -43,7 +42,7 @@ exports.handler = async (event, context) => {
         const statusObj = {};
         for (let [index, status] of statusList.entries()) {
           const statusName = ":passStatus" + index;
-          statusObj[statusName.toString()] = AWS.DynamoDB.Converter.input(status);
+          statusObj[statusName.toString()] = {S: status.toString()};
         }
         queryObj = checkAddExpressionAttributeNames(queryObj);
         queryObj.ExpressionAttributeNames['#theStatus'] = 'passStatus';
@@ -59,26 +58,20 @@ exports.handler = async (event, context) => {
       if (event.queryStringParameters.firstName) {
         queryObj = checkAddExpressionAttributeNames(queryObj);
         queryObj.ExpressionAttributeNames['#firstName'] = 'firstName';
-        queryObj.ExpressionAttributeValues[':firstName'] = AWS.DynamoDB.Converter.input(
-          event.queryStringParameters.firstName
-        );
+        queryObj.ExpressionAttributeValues[':firstName'] = {S: event.queryStringParameters.firstName.toString() };
         queryObj.FilterExpression += ' AND #firstName =:firstName';
       }
       if (event.queryStringParameters.lastName) {
         queryObj = checkAddExpressionAttributeNames(queryObj);
         queryObj.ExpressionAttributeNames['#lastName'] = 'lastName';
-        queryObj.ExpressionAttributeValues[':lastName'] = AWS.DynamoDB.Converter.input(
-          event.queryStringParameters.lastName
-        );
+        queryObj.ExpressionAttributeValues[':lastName'] = {S: event.queryStringParameters.lastName };
         queryObj.FilterExpression += ' AND #lastName =:lastName';
       }
       // Filter email
       if (event.queryStringParameters.email) {
         queryObj = checkAddExpressionAttributeNames(queryObj);
         queryObj.ExpressionAttributeNames['#email'] = 'email';
-        queryObj.ExpressionAttributeValues[':email'] = AWS.DynamoDB.Converter.input(
-          event.queryStringParameters.email
-        );
+        queryObj.ExpressionAttributeValues[':email'] = {S: event.queryStringParameters.email.toString() };
         queryObj.FilterExpression += ' AND #email =:email';
       }
 
@@ -114,11 +107,13 @@ exports.handler = async (event, context) => {
       try {
         // Upload file
         logger.info("Uploading to S3");
-        res = await s3.putObject(params).promise();
+        res = await // The `.promise()` call might be on an JS SDK v2 client API.
+        // If yes, please remove .promise(). If not, remove this comment.
+        S3.putObject(params)
 
         // Generate URL.
         logger.info("Generating Signed URL");
-        const URL = await s3.getSignedUrl('getObject', {
+        const URL = await S3.getSignedUrl('getObject', {
           Bucket: process.env.S3_BUCKET_DATA,
           Expires: expiryTime,
           Key: '/' + token.data.idir_userid + '/passExport.csv',

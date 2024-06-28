@@ -1,7 +1,5 @@
-const AWS = require('aws-sdk');
-const { DateTime } = require('luxon');
 
-const { dynamodb, TABLE_NAME, TIMEZONE, sendResponse, logger } = require('/opt/baseLayer');
+const { dynamodb, TABLE_NAME, TIMEZONE, sendResponse, logger, marshall, unmarshall, DateTime } = require('/opt/baseLayer');
 const { decodeJWT, resolvePermissions, getParkAccess } = require('/opt/permissionLayer');
 const { processReservationObjects, getFutureReservationObjects, createNewReservationsObj } = require('/opt/reservationLayer');
 const { unlockFacility, setFacilityLock } = require('/opt/facilityLayer');
@@ -79,23 +77,25 @@ async function createFacility(obj) {
     Item: {
       pk: { S: `facility::${parkOrcs}` },
       sk: { S: name },
-      bookingTimes: { M: AWS.DynamoDB.Converter.marshall(bookingTimes) },
+      bookingTimes: { M: marshall(bookingTimes) },
       name: { S: name },
-      status: { M: AWS.DynamoDB.Converter.marshall(status) },
+      status: { M: marshall(status) },
       type: { S: type },
       visible: { BOOL: visible },
       qrcode: { BOOL: qrcode },
       isUpdating: { BOOL: false },
       bookingOpeningHour: bookingOpeningHourAttrValue,
       bookingDaysAhead: bookingDaysAheadAttrValue,
-      bookingDays: { M: AWS.DynamoDB.Converter.marshall(bookingDays) },
+      bookingDays: { M: marshall(bookingDays) },
       bookingDaysRichText: { S: bookingDaysRichText },
-      bookableHolidays: AWS.DynamoDB.Converter.input(bookableHolidays)
+      bookableHolidays: {M: marshall(bookableHolidays)}
     }
   };
 
   logger.debug('putting item:', facilityObj);
-  const res = await dynamodb.putItem(facilityObj).promise();
+  const res = await // The `.promise()` call might be on an JS SDK v2 client API.
+  // If yes, please remove .promise(). If not, remove this comment.
+  dynamodb.putItem(facilityObj).promise();
   logger.info('res:', res.length);
   logger.debug('res:', res);
   return sendResponse(200, res);
@@ -172,16 +172,16 @@ async function updateFacility(obj) {
       },
       ExpressionAttributeValues: {
         ':name': {S: name},
-        ':statusValue': { M: AWS.DynamoDB.Converter.marshall(status) },
+        ':statusValue': { M: marshall(status) },
         ':visibility': { BOOL: visible },
         ':qrcode': { BOOL: qrcode },
-        ':bookingTimes': { M: AWS.DynamoDB.Converter.marshall(bookingTimes) },
+        ':bookingTimes': { M: marshall(bookingTimes) },
         ':bookingOpeningHour': bookingOpeningHourAttrValue,
         ':bookingDaysAhead': bookingDaysAheadAttrValue,
         ':isUpdating': { BOOL: false },
-        ':bookingDays': { M: AWS.DynamoDB.Converter.marshall(bookingDays) },
+        ':bookingDays': { M: marshall(bookingDays) },
         ":bookingDaysRichText": { S: bookingDaysRichText },
-        ":bookableHolidays": AWS.DynamoDB.Converter.input(bookableHolidays)
+        ":bookableHolidays": {M: marshall(bookableHolidays)}
       },
       ExpressionAttributeNames: {
         '#facilityStatus': 'status',
@@ -193,7 +193,9 @@ async function updateFacility(obj) {
       ReturnValues: 'ALL_NEW',
       TableName: TABLE_NAME
     };
-    const { Attributes } = await dynamodb.updateItem(updateParams).promise();
+    const { Attributes } = await // The `.promise()` call might be on an JS SDK v2 client API.
+    // If yes, please remove .promise(). If not, remove this comment.
+    dynamodb.updateItem(updateParams).promise();
 
     // Attempt to create a new reservation object for 'today' if it doesn't exist.
     // We want a record of every facility update when the updated data affects the reservation obj. 
@@ -202,7 +204,7 @@ async function updateFacility(obj) {
     const todayShortDate = DateTime.now().setZone(TIMEZONE).toISODate();
     await createNewReservationsObj(obj, reservationsObjectPK, todayShortDate);
 
-    return sendResponse(200, AWS.DynamoDB.Converter.unmarshall(Attributes));
+    return sendResponse(200, unmarshall(Attributes));
   } catch (error) {
     logger.error(JSON.stringify(error));
     await unlockFacility(`facility::${parkOrcs}`, sk);

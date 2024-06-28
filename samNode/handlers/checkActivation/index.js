@@ -9,7 +9,9 @@ const { setStatus,
   EXPIRED_STATUS,
   DEFAULT_PM_OPENING_HOUR,
   PASS_TYPE_PM,
-  TIMEZONE, sendResponse, logger } = require('/opt/baseLayer');
+  TIMEZONE,
+  sendResponse,
+  logger } = require('/opt/baseLayer');
   
 exports.handler = async (event, context) => {
   logger.debug('Event:', event, context);

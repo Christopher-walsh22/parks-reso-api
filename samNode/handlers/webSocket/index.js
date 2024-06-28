@@ -1,4 +1,4 @@
-const AWS = require('aws-sdk');
+const { ApiGatewayManagementApi } = require('@aws-sdk/client-apigatewaymanagementapi');
 const { sendResponse } = require('/opt/baseLayer');
 
 let connections = new Set();
@@ -45,14 +45,14 @@ async function onMessage(event) {
   const result = connections.has(event.requestContext.connectionId);
 
   // Send a message to everyone!
-  const apigwManagementApi = new AWS.ApiGatewayManagementApi({
+  const apigwManagementApi = new ApiGatewayManagementApi({
     endpoint: 'http://' + domainName + ':3001/'
   });
   console.log("SENDING")
   console.log({endpoint: 'http://' + domainName + ':3001/'})
   for (const c of connections) {
     console.log("C:", c);
-    await apigwManagementApi.postToConnection({ ConnectionId: c, Data: 'HEY!' }).promise();
+    await apigwManagementApi.postToConnection({ ConnectionId: c, Data: 'HEY!' });
   }
 
   if (result) {

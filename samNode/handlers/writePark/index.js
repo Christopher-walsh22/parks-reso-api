@@ -1,7 +1,7 @@
-const AWS = require('aws-sdk');
-const { dynamodb, TABLE_NAME, sendResponse, logger } = require('/opt/baseLayer');
+const AWS = require('/opt/baseLayer');
+const { dynamodb, TABLE_NAME, sendResponse, logger, unmarshall, marshall } = require('/opt/baseLayer');
 const { decodeJWT, resolvePermissions, getParkAccess } = require('/opt/permissionLayer');
-
+// const DynamoDB = require('/opt/baseLayer')
 
 exports.handler = async (event, context) => {
   if (!event || !event.headers) {
@@ -66,24 +66,28 @@ async function createItem(obj, context) {
   parkObject.Item['description'] = { S: description };
   parkObject.Item['orcs'] = { S: park.orcs };
   const roles = ['sysadmin', `${park.orcs}`];
-  parkObject.Item['roles'] = AWS.DynamoDB.Converter.input(roles);
+  parkObject.Item['roles'] = {M: marshall(roles)};
 
   // TODO: Lookup name from database via orcs
   parkObject.Item['name'] = { S: park.name };
   if (park.capacity) {
-    parkObject.Item['capacity'] = AWS.DynamoDB.Converter.input(park.capacity);
+    parkObject.Item['capacity'] ={N: park.capacity };
   }
   parkObject.Item['status'] = { S: park.status };
   parkObject.Item['winterWarning'] = { BOOL: winterWarning };
   parkObject.Item['visible'] = { BOOL: visible };
   if (park.mapLink) {
-    parkObject.Item['mapLink'] = AWS.DynamoDB.Converter.input(park.mapLink);
+    parkObject.Item['mapLink'] = {S: park.mapLink };
   } else {
     parkObject.Item['mapLink'] = { NULL: true };
   }
 
   logger.debug('putting item:', parkObject);
-  const res = await dynamodb.putItem(parkObject).promise();
+  const res = await // The `.promise()` call might be on an JS SDK v2 client API.
+  // If yes, please remove .promise(). If not, remove this comment.
+  // The `.promise()` call might be on an JS SDK v2 client API.
+  // If yes, please remove .promise(). If not, remove this comment.
+  dynamodb.putItem(parkObject).promise();
   logger.info('Results:', res.length);
   logger.debug('res:', res);
   return sendResponse(200, res, context);
@@ -110,14 +114,14 @@ async function updateItem(obj, context) {
       : updateParams.UpdateExpression;
   updateParams.ExpressionAttributeValues = {
     ...updateParams.ExpressionAttributeValues,
-    ...('description' in obj && { ':description': AWS.DynamoDB.Converter.input(obj.description) })
+    ...('description' in obj && { ':description': {S: obj.description }})
   };
 
   updateParams.UpdateExpression =
     'visible' in obj ? updateParams.UpdateExpression + ' visible =:visible,' : updateParams.UpdateExpression;
   updateParams.ExpressionAttributeValues = {
     ...updateParams.ExpressionAttributeValues,
-    ...('visible' in obj && { ':visible': AWS.DynamoDB.Converter.input(obj.visible) })
+    ...('visible' in obj && { ':visible': {BOOL: obj.visible }})
   };
 
   updateParams.UpdateExpression =
@@ -126,14 +130,14 @@ async function updateItem(obj, context) {
       : updateParams.UpdateExpression;
   updateParams.ExpressionAttributeValues = {
     ...updateParams.ExpressionAttributeValues,
-    ...('winterWarning' in obj && { ':winterWarning': AWS.DynamoDB.Converter.input(obj.winterWarning) })
+    ...('winterWarning' in obj && { ':winterWarning':{S: obj.winterWarning.toString() }})
   };
   // Reserved Words
   if (obj?.park?.capacity) {
     updateParams.UpdateExpression = updateParams.UpdateExpression + ' #up_capacity =:capacity,';
     updateParams.ExpressionAttributeValues = {
       ...updateParams.ExpressionAttributeValues,
-      ':capacity': AWS.DynamoDB.Converter.input(obj.park.capacity)
+      ':capacity': {N: obj.park.capacity}
     };
     updateParams.ExpressionAttributeNames = {
       ...updateParams.ExpressionAttributeNames,
@@ -144,7 +148,7 @@ async function updateItem(obj, context) {
     updateParams.UpdateExpression = updateParams.UpdateExpression + ' #up_status =:status,';
     updateParams.ExpressionAttributeValues = {
       ...updateParams.ExpressionAttributeValues,
-      ':status': AWS.DynamoDB.Converter.input(obj.park.status)
+      ':status': {S: obj.park.status}
     };
     updateParams.ExpressionAttributeNames = {
       ...updateParams.ExpressionAttributeNames,
@@ -156,7 +160,7 @@ async function updateItem(obj, context) {
   if (obj?.park?.bcParksLink) {
     updateParams.ExpressionAttributeValues = {
       ...updateParams.ExpressionAttributeValues,
-      ':bcParksLink': AWS.DynamoDB.Converter.input(obj.park.bcParksLink)
+      ':bcParksLink': {S: obj.park.bcParksLink}
     };
   } else {
     updateParams.ExpressionAttributeValues = {
@@ -169,7 +173,7 @@ async function updateItem(obj, context) {
   if (obj?.park?.mapLink) {
     updateParams.ExpressionAttributeValues = {
       ...updateParams.ExpressionAttributeValues,
-      ':mapLink': AWS.DynamoDB.Converter.input(obj.park.mapLink)
+      ':mapLink': {S: obj.park.mapLink}
     };
   } else {
     updateParams.ExpressionAttributeValues = {
@@ -182,7 +186,7 @@ async function updateItem(obj, context) {
   if (obj?.park?.videoLink) {
     updateParams.ExpressionAttributeValues = {
       ...updateParams.ExpressionAttributeValues,
-      ':videoLink': AWS.DynamoDB.Converter.input(obj.park.videoLink)
+      ':videoLink': {S: obj.park.videoLink}
     };
   } else {
     updateParams.ExpressionAttributeValues = {
@@ -195,7 +199,7 @@ async function updateItem(obj, context) {
   if (obj?.park?.specialClosure) {
     updateParams.ExpressionAttributeValues = {
       ...updateParams.ExpressionAttributeValues,
-      ':specialClosure': AWS.DynamoDB.Converter.input(obj.park.specialClosure)
+      ':specialClosure': {S: obj.park.specialClosure}
     };
   } else {
     updateParams.ExpressionAttributeValues = {
@@ -209,7 +213,7 @@ async function updateItem(obj, context) {
  if (obj?.park?.specialClosureText) {
    updateParams.ExpressionAttributeValues = {
      ...updateParams.ExpressionAttributeValues,
-     ':specialClosureText': AWS.DynamoDB.Converter.input(obj.park.specialClosureText)
+     ':specialClosureText': {S: obj.park.specialClosureText}
    };
  } else {
    updateParams.ExpressionAttributeValues = {
@@ -222,7 +226,11 @@ async function updateItem(obj, context) {
   updateParams.UpdateExpression = updateParams.UpdateExpression.slice(0, -1);
 
   logger.debug('Updating item:', updateParams);
-  const { Attributes } = await dynamodb.updateItem(updateParams).promise();
+  const { Attributes } = await // The `.promise()` call might be on an JS SDK v2 client API.
+  // If yes, please remove .promise(). If not, remove this comment.
+  // The `.promise()` call might be on an JS SDK v2 client API.
+  // If yes, please remove .promise(). If not, remove this comment.
+  dynamodb.updateItem(updateParams).promise();
   logger.info('Results:', Attributes);
-  return sendResponse(200, AWS.DynamoDB.Converter.unmarshall(Attributes), context);
+  return sendResponse(200, unmarshall(Attributes), context);
 }

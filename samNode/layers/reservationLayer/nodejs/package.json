@@ -4,7 +4,6 @@
     "author": "Digitalspace <contact@digitalspace.ca>",
     "license": "MIT",
     "dependencies": {
-      "aws-sdk": "^2.1441.0",
       "luxon": "^3.2.1"
   },
   "scripts": {

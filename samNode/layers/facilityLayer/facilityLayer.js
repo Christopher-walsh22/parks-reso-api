@@ -1,5 +1,5 @@
-const AWS = require('aws-sdk');
-const { dynamodb, TABLE_NAME, logger } = require('/opt/baseLayer');
+const AWS = require('/opt/baseLayer');
+const { dynamodb, TABLE_NAME, logger, unmarshall } = require('/opt/baseLayer');
 
 async function setFacilityLock(pk, sk) {
   const facilityLockObject = {
@@ -9,8 +9,8 @@ async function setFacilityLock(pk, sk) {
       sk: { S: sk }
     },
     ExpressionAttributeValues: {
-      ':isUpdating': AWS.DynamoDB.Converter.input(true),
-      ':false': AWS.DynamoDB.Converter.input(false)
+      ':isUpdating': {BOOL: true},
+      ':false': {BOOL: false}
     },
     UpdateExpression: 'SET isUpdating = :isUpdating',
     ConditionExpression: 'isUpdating = :false',
@@ -19,7 +19,7 @@ async function setFacilityLock(pk, sk) {
   try {
     logger.debug('facilityLockObject', facilityLockObject);
     const { Attributes } = await dynamodb.updateItem(facilityLockObject).promise();
-    return AWS.DynamoDB.Converter.unmarshall(Attributes);
+    return unmarshall(Attributes);
   } catch (error) {
     logger.error(error);
     throw {
@@ -38,7 +38,7 @@ async function unlockFacility(pk, sk) {
         sk: { S: sk }
       },
       ExpressionAttributeValues: {
-        ':isUpdating': AWS.DynamoDB.Converter.input(false)
+        ':isUpdating': {BOOL: false}
       },
       UpdateExpression: 'SET isUpdating = :isUpdating',
       ReturnValues: 'ALL_NEW'

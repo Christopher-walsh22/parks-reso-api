@@ -1,5 +1,5 @@
-const AWS = require('aws-sdk');
-const { runQuery, TABLE_NAME, META_TABLE_NAME, TIMEZONE, dynamodb, logger, sendResponse } = require('/opt/baseLayer');
+const AWS = require('/opt/baseLayer');
+const { runQuery, TABLE_NAME, META_TABLE_NAME, TIMEZONE, dynamodb, logger, sendResponse, marshall } = require('/opt/baseLayer');
 const { gcnSend } = require('/opt/gcNotifyLayer');
 const { webhookPost } = require('/opt/webhookLayer');
 const { DateTime } = require('luxon');
@@ -187,10 +187,12 @@ async function postBulkSummary(data, jobError, passArray) {
     };
     let postObj = {
       TableName: META_TABLE_NAME,
-      Item: AWS.DynamoDB.Converter.marshall(postItem),
+      Item: marshall(postItem),
       ConditionExpression: 'attribute_not_exists(pk) AND attribute_not_exists(sk)',
     };
-    await dynamodb.putItem(postObj).promise();
+    await // The `.promise()` call might be on an JS SDK v2 client API.
+    // If yes, please remove .promise(). If not, remove this comment.
+    dynamodb.putItem(postObj).promise();
     logger.debug('Posted bulk feedbackSurveySummary to database:', postItem);
     return postItem;
   } catch (err) {

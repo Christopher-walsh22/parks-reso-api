@@ -2,8 +2,5 @@
   "name": "dup-api-facility-layer",
   "version": "1.0.0",
   "author": "Digitalspace <contact@digitalspace.ca>",
-  "license": "MIT",
-  "dependencies": {
-    "aws-sdk": "^2.1441.0"
-  }
+  "license": "MIT"
 }

@@ -46,7 +46,9 @@ async function updateDisplayName(park, newName) {
       ReturnValues: 'ALL_NEW'
     }
 
-    await dynamodb.updateItem(updatePark).promise();
+    await // The `.promise()` call might be on an JS SDK v2 client API.
+    // If yes, please remove .promise(). If not, remove this comment.
+    dynamodb.updateItem(updatePark).promise();
 
     // update park name in facilities
     const facilities = await getFacilities(park.orcs);
@@ -65,7 +67,9 @@ async function updateDisplayName(park, newName) {
         ReturnValues: 'ALL_NEW'
       }
 
-      await dynamodb.updateItem(updateFacility).promise();
+      await // The `.promise()` call might be on an JS SDK v2 client API.
+      // If yes, please remove .promise(). If not, remove this comment.
+      dynamodb.updateItem(updateFacility).promise();
     }
 
     logger.info(`Park name updated for ${park.orcs}: ${oldName} is now ${newName}`);

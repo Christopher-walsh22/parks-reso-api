@@ -1,5 +1,5 @@
-const AWS = require("aws-sdk");
-const s3 = new AWS.S3();
+const { S3 } = require("@aws-sdk/client-s3");
+const s3 = new S3();
 const { runScan, TABLE_NAME, logger } = require("/opt/baseLayer");
 const { updateJobEntry } = require("/opt/getAllPassLayer");
 const csvjson = require('csvjson');
@@ -55,7 +55,7 @@ exports.handler = async (event, context) => {
       let res = null;
       try {
         // Upload file
-        res = await s3.putObject(params).promise();
+        res = await s3.putObject(params);
         await updateJobWithState(jobid, s3Key, 7, "Export ready.", 100);
 
       } catch (err) {

@@ -1,5 +1,4 @@
-const AWS = require('aws-sdk');
-const { dynamodb, TABLE_NAME, TIMEZONE, runQuery, logger } = require('/opt/baseLayer');
+const { dynamodb, TABLE_NAME, TIMEZONE, runQuery, logger, marshall } = require('/opt/baseLayer');
 const { DateTime } = require('luxon');
 
 // TODO: provide these as vars in Parameter Store
@@ -103,7 +102,7 @@ async function createNewReservationsObj(
   // Attempt to create a new reservations object
   const reservationsObject = {
     TableName: TABLE_NAME,
-    Item: AWS.DynamoDB.Converter.marshall(rawReservationsObject),
+    Item: marshall(rawReservationsObject),
     ConditionExpression: 'attribute_not_exists(pk) AND attribute_not_exists(sk)'
   };
 
@@ -327,7 +326,7 @@ async function updateReservationsObjectMeta(pk, sk, status) {
 }
 
 async function updateReservationsObjectCapacity(pk, sk, type, newBaseCapacity, newModifier, newResAvailability) {
-  const mapType = AWS.DynamoDB.Converter.marshall({
+  const mapType = marshall({
     capacityModifier: Number(newModifier),
     baseCapacity: Number(newBaseCapacity),
     availablePasses: Number(newResAvailability)
@@ -403,7 +402,7 @@ async function reverseOverbookedPasses(passes, newResAvailability) {
         sk: { S: pass.sk }
       },
       ExpressionAttributeValues: {
-        ':isOverbooked': AWS.DynamoDB.Converter.input(false)
+        ':isOverbooked': {BOOL: false}
       },
       UpdateExpression: 'SET isOverbooked = :isOverbooked',
       ReturnValues: 'ALL_NEW'
@@ -460,7 +459,7 @@ async function updatePassObjectsAsOverbooked(facilityName, shortPassDate, type, 
         sk: { S: pass.sk }
       },
       ExpressionAttributeValues: {
-        ':isOverbooked': AWS.DynamoDB.Converter.input(true)
+        ':isOverbooked': {BOOL: true}
       },
       UpdateExpression: 'SET isOverbooked = :isOverbooked',
       ReturnValues: 'ALL_NEW'

@@ -15,7 +15,6 @@ exports.handler = async (event, context) => {
   // 1. Get the relevant metrics information from the queryparameters
 
   try {
-    console.log("EVENT IN READ METRICS: ", event)
     const permissionObject = event.requestContext.authorizer;
     permissionObject.roles = JSON.parse(permissionObject.roles);
 

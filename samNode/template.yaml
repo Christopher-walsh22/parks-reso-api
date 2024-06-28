@@ -12,7 +12,7 @@ Globals:
         SSO_ISSUER: !Ref SSOIssuerUrl
         SSO_JWKSURI: !Ref SSOJWKSUri
         IS_OFFLINE: true
-        DYNAMODB_ENDPOINT_URL: https://dynamodb.ca-central-1.amazonaws.com
+        DYNAMODB_ENDPOINT_URL: "http://172.17.0.2:8000"
 
 Parameters:
   Algorithm:
@@ -72,45 +72,24 @@ Parameters:
   GCNotifyIsSendingSurveys:
     Type: String
     Default: 'NO'
-  GCNotifyNotificationType:
-    Type: String
-    Default: 'String'
-  GCNotifyParkingReceiptTemplateID:
-    Type: String
-    Default: 'ID'
   GCNotifyPassCancellationRoute:
     Type: String
-    Default: 'CANCEL HERE'
+    Default: '/pass-lookup'
   GCNotifyPassManagementRoute:
     Type: String
-    Default: 'PassMR?'
-  GCNotifyPrivateKey:
-    Type: String
-    Default: 'DefaultKey'
+    Default: '/pass-management/check-in'
   GCNotifyPublicFrontend:
     Type: String
     Default: 'Public Frontend Key'
-  GCNotifyQueueName:
-    Type: String
-    Default: 'String'
   GCNotifyReminderTemplateID:
     Type: String
     Default: 'SSSSSS'
-  GCNotifySmsTemplateId:
+  GCNotifySMSTemplateId:
     Type: String
     Default: 'String'
-  GCNotifySMSTemplateID:
+  GCNotifySurveyTemplateID:
     Type: String
     Default: 'String'
-  GCNotifySurveyTempalteID:
-    Type: String
-    Default: 'String'
-  GCNotifyTemplateId:
-    Type: String
-    Default: 'CANCEL TEMPLATE ID'
-  GCNotifyTrailReceiptTemplateID:
-    Type: String
-    Default: 'Default'
   HoldPassTimeout:
     Type: String
     Default: '7m'
@@ -135,18 +114,9 @@ Parameters:
   ModerateCapacityThreshold:
     Type: String
     Default: '0.75'
-  PassCancellationRoute:
-    Type: String
-    Default: 'CANCEL HERE'
-  PassManagementRoute:
-    Type: String
-    Default: 'PassMR'
   PassShortdateIndex:
     Type: String
-    Default: 'Index'
-  PublicKey:
-    Type: String
-    Default: 'Public FrontEnd'
+    Default: 'shortPassDate-index'
   PrivateKey:
     Type: String
     Default: 'DefaultKey'
@@ -742,7 +712,7 @@ Resources:
           ALGORITHM: !Ref Algorithm
           JWT_SECRET: !Ref JWTSecret
           PUBLIC_FRONTEND: !Ref GCNotifyPublicFrontend
-          PASS_CANCELLATION_ROUTE: !Ref PassCancellationRoute
+          PASS_CANCELLATION_ROUTE: !Ref GCNotifyPassCancellationRoute
           GC_NOTIFY_API_PATH: !Ref GCNotifyApiPath
           GC_NOTIFY_CANCEL_TEMPLATE_ID: !Ref GCNotifyCancelTemplateID
           METRICS_TABLE_NAME: !Ref MetricsTableName
@@ -835,8 +805,8 @@ Resources:
           GC_NOTIFY_API_KEY: !Ref GCNotifyApiKey
           WEBHOOK_URL: !Ref WebHookURL
           PUBLIC_FRONTEND: !Ref GCNotifyPublicFrontend
-          PASS_CANCELLATION_ROUTE: !Ref PassCancellationRoute
-          GC_NOTIFY_SMS_TEMPLATE_ID: !Ref GCNotifySMSTemplateID
+          PASS_CANCELLATION_ROUTE: !Ref GCNotifyPassCancellationRoute
+          GC_NOTIFY_SMS_TEMPLATE_ID: !Ref GCNotifySMSTemplateId
           GC_NOTIFY_API_SMS_PATH: !Ref GCNotifyApiSMSPath
           META_TABLE_NAME: !Ref MetaTableName
           METRICS_TABLE_NAME: !Ref MetricsTableName
@@ -866,7 +836,7 @@ Resources:
           PASS_SHORTDATE_INDEX: !Ref PassShortdateIndex
           FEEDBACK_SURVEY_URL: !Ref FeedbackSurveyUrl
           GC_NOTIFY_IS_SENDING_SURVEYS: !Ref GCNotifyIsSendingSurveys
-          GC_NOTIFY_SURVEY_TEMPLATE_ID: !Ref GCNotifySurveyTempalteID
+          GC_NOTIFY_SURVEY_TEMPLATE_ID: !Ref GCNotifySurveyTemplateID
           GC_NOTIFY_API_BULK_PATH: !Ref GCNotifyApiBulkPath
           GC_NOTIFY_API_KEY: !Ref GCNotifyApiKey
           WEBHOOK_URL: !Ref WebHookURL
@@ -1100,16 +1070,16 @@ Resources:
           METRICS_TABLE_NAME: !Ref MetricsTableName
           META_TABLE_NAME: !Ref MetaTableName
           LOG_LEVEL: !Ref LogLevel
-          PASS_MANAGEMENT_ROUTE: !Ref PassManagementRoute
+          PASS_MANAGEMENT_ROUTE: !Ref GCNotifyPassManagementRoute
           ADMIN_FRONTEND: !Ref AdminFrontEnd
           JWT_SECRET: !Ref JWTSecret
           JWT_SIGN_EXPIRY: !Ref JWTSignExpiry
           PRIVATE_KEY: !Ref PrivateKey
-          AWS_DEFAULT_REGION: !Ref AWSDefaultRegion
+          AWSDEFAULTREGION: !Ref AWSDefaultRegion
           ALGORITHM: !Ref Algorithm
           SQSQUEUENAME: !Ref SqsQueueName
           SQSEXPIRTY_QUEUE: !Ref SqsExpiryQueue
-          AWS_REGION: !Ref AWSDefaultRegion
+          AWSREGION: !Ref AWSDefaultRegion
           SSO_ISSUER: !Ref SSOIssuerUrl
           SSO_JWKSURI: !Ref SSOJWKSUri
           MODERATE_CAPACITY_THRESHOLD: !Ref ModerateCapacityThreshold
@@ -1121,9 +1091,8 @@ Resources:
         - !Ref BaseLayer
         - !Ref PermissionLayer
         - !Ref PassLayer
-        - !Ref SQSLayer
-        - !Ref ReservationLayer
         - !Ref JWTLayer
+        - !Ref ReservationLayer
       Runtime: nodejs18.x
       Architectures:
         - x86_64
