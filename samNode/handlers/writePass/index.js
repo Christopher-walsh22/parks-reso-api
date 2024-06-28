@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const { TransactWriteItemsCommand, TransactWriteItems } = require('@aws-sdk/client-dynamodb');
+const { TransactWriteItemsCommand, TransactWriteItems, DynamoDBClient } = require('@aws-sdk/client-dynamodb');
 const { DateTime } = require('luxon');
 const {
   DEFAULT_PM_OPENING_HOUR,
@@ -18,7 +18,7 @@ const {
   CustomError,
   logger,
   unmarshall,
-  dynamoClient
+  //dynamoClient
 } = require('/opt/baseLayer');
 const {
   decodeJWT,
@@ -43,6 +43,14 @@ const HOLD_PASS_TIMEOUT = process.env.HOLD_PASS_TIMEOUT || '7m';
 
 // default opening/closing hours in 24h time
 const DEFAULT_AM_OPENING_HOUR = 7;
+
+
+const options = {
+  region: "ca-central-1",
+  endpoint: "http://172.17.0.2:8000"
+};
+const dynamoClient = new DynamoDBClient(options)
+
 
 exports.handler = async (event, context) => {
   logger.debug('WritePass:', event);
@@ -397,6 +405,8 @@ async function handleHoldPass(newObject, isAdmin) {
     logger.debug(transactionObj);
 
     // Perform the transaction, retrying if necessary
+    console.log("About to write with retries");
+    console.log("transactionOBJ: ", transactionObj)
     await transactWriteWithRetries(transactionObj); // TODO: Set a retry limit if 3 isn't enough.
     console.log("Past write transaction with retry")
     logger.info('Transaction complete');
@@ -494,7 +504,7 @@ async function transactWriteWithRetries(transactionObj, maxRetries = 3) {
       try {
         logger.info('Writing Transact obj.');
         logger.debug('Transact obj:', JSON.stringify(transactionObj));
-        console.log(JSON.stringify(transactionObj, null, 3))
+        //console.log(JSON.stringify(transactionObj, null, 3))
         const command = new TransactWriteItemsCommand({
           TransactItems: transactionObj.TransactItems
         });
@@ -507,6 +517,8 @@ async function transactWriteWithRetries(transactionObj, maxRetries = 3) {
         //res = await dynamodb.send(command);
         //setTimeout(1000)
         // setTimeout(async () => {await dynamodb.send(command);}, 1000)
+        console.log("THIS IS THE COMMAND: ")
+        console.log(JSON.stringify(command, null, 3))
         res = await dynamoClient.send(command)
         console.log("AFTER SEND")
         //res = await dynamodb.send(command);
