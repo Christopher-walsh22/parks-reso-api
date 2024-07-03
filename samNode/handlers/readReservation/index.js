@@ -168,7 +168,9 @@ async function getOverbookedData(date, facility) {
     KeyConditionExpression: 'shortPassDate =:shortPassDate AND facilityName =:facilityName',
     FilterExpression: 'isOverbooked = :isOverbooked'
   };
+  console.log("IN THE GET OVERBOOKED DATA FUNCITON:::::")
   const passData = await runQuery(queryObj);
+  console.log("PAass data passed: ", passData)
   let overbookedObj = {
     AM: 0,
     PM: 0,

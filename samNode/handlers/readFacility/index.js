@@ -47,8 +47,10 @@ exports.handler = async (event, context) => {
 
       if (await parkVisible(event.queryStringParameters.park, permissionObject.isAuthenticated)) {
         queryObj = visibleFilter(queryObj, permissionObject.isAuthenticated);
+        console.log("I am here: ", queryObj);
         const facilityData = await runQuery(queryObj);
         logger.info('Returning results', facilityData.length);
+        console.log("Facility Data: ", facilityData)
         return sendResponse(200, facilityData, context);
       } else {
         logger.info('Invalid Request');

@@ -424,6 +424,8 @@ async function convertPassToReserved(decodedToken, passStatus, firstName, lastNa
       ':statusValue': { S: passStatus },
       ':firstName': { S: firstName },
       ':lastName': { S: lastName },
+      ':searchFirstName': { S: firstName.toLowerCase() },
+      ':searchLastName': { S: lastName.toLowerCase() },
       ':email': { S: email },
       ':empty_list': { L: [] }, // For pass objects which do not have an audit property.
       ':dateUpdated': { S: DateTime.now().toUTC().toISO() },
@@ -445,7 +447,7 @@ async function convertPassToReserved(decodedToken, passStatus, firstName, lastNa
         ]
       }
     },
-    UpdateExpression: 'SET passStatus = :statusValue, firstName = :firstName, lastName = :lastName, email = :email, audit = list_append(if_not_exists(audit, :empty_list), :audit_val), dateUpdated = :dateUpdated',
+    UpdateExpression: 'SET passStatus = :statusValue, firstName = :firstName, lastName = :lastName, searchFirstName = :searchFirstName, searchLastName = :searchLastName, email = :email, audit = list_append(if_not_exists(audit, :empty_list), :audit_val), dateUpdated = :dateUpdated',
     ReturnValues: 'ALL_NEW'
   };
   if (phoneNumber) {
@@ -588,7 +590,7 @@ const sendResponse = function (code, data, context) {
       'Content-Type': 'application/json',
       'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-App-Version',
       'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'OPTIONS,GET'
+      'Access-Control-Allow-Methods': 'OPTIONS,GET,PUT,DELETE,POST'
     },
     body: JSON.stringify(data)
   };
