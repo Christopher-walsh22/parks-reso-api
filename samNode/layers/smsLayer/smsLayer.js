@@ -1,4 +1,3 @@
-const AWS = require('/opt/baseLayer');
 const { gcnSend } = require('/opt/gcNotifyLayer');
 const { sendResponse, logger } = require('/opt/baseLayer');
 

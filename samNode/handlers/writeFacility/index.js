@@ -1,5 +1,5 @@
 
-const { dynamodb, TABLE_NAME, TIMEZONE, sendResponse, logger, marshall, unmarshall, DateTime } = require('/opt/baseLayer');
+const { dynamoClient, TABLE_NAME, TIMEZONE, sendResponse, logger, marshall, unmarshall, DateTime, PutItemCommand, UpdateItemCommand } = require('/opt/baseLayer');
 const { decodeJWT, resolvePermissions, getParkAccess } = require('/opt/permissionLayer');
 const { processReservationObjects, getFutureReservationObjects, createNewReservationsObj } = require('/opt/reservationLayer');
 const { unlockFacility, setFacilityLock } = require('/opt/facilityLayer');
@@ -93,9 +93,9 @@ async function createFacility(obj) {
   };
 
   logger.debug('putting item:', facilityObj);
-  const res = await // The `.promise()` call might be on an JS SDK v2 client API.
-  // If yes, please remove .promise(). If not, remove this comment.
-  dynamodb.putItem(facilityObj).promise();
+
+  const command = new PutItemCommand(facilityOBj);
+  const res = dynamoClient.send(command);
   logger.info('res:', res.length);
   logger.debug('res:', res);
   return sendResponse(200, res);
@@ -193,9 +193,9 @@ async function updateFacility(obj) {
       ReturnValues: 'ALL_NEW',
       TableName: TABLE_NAME
     };
-    const { Attributes } = await // The `.promise()` call might be on an JS SDK v2 client API.
-    // If yes, please remove .promise(). If not, remove this comment.
-    dynamodb.updateItem(updateParams).promise();
+    
+    const command = new UpdateItemCommand(updateParams)
+    const {Attributes} = await dynamoClient.send(command)
 
     // Attempt to create a new reservation object for 'today' if it doesn't exist.
     // We want a record of every facility update when the updated data affects the reservation obj. 

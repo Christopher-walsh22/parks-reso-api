@@ -5,14 +5,13 @@ const INVALID_TOKEN = {
         decoded: false,
         data: null
       };
-const { runQuery, TABLE_NAME, dynamodb, logger } = require('/opt/baseLayer');
+const { runQuery, TABLE_NAME, dynamoClient, logger, DeleteItemCommand } = require('/opt/baseLayer');
 const jwt = require('jsonwebtoken');
 const jwksClient = require('jwks-rsa');
 const axios = require('axios');
 
 exports.decodeJWT = async function (event) {
   const token = event.headers.Authorization;
-
   let decoded = null;
   try {
     decoded = await new Promise(function (resolve) {
@@ -84,20 +83,25 @@ exports.verifyHoldToken = function (token, secret) {
 };
 
 exports.deleteHoldToken = async function (token) {
+  console.log("Deleteing this token: ", token)
   try {
-    await dynamodb.deleteItem({
+    const params = { 
+      TableName: TABLE_NAME,
       Key: {
-        pk: { S: 'jwt' },
-        sk: { S: token }
-      },
-      TableName: TABLE_NAME
-    }).promise();
+        pk: {S: 'jwt'},
+        sk: {S: token}
+      }
+    }
+    const command = new DeleteItemCommand(params)
+    console.log(command)
+    const data = await dynamoClient.send(command)
+    console.log("Data from delete: ", data)
   } catch (error) {
     // Handle the error here
-    logger.error('Error deleting hold token:');
+    logger.error('Error deleting hold token: ', error);
     logger.debug(error);
   }
-};
+}
 
 const verifyToken = function (token, callback, sendError) {
   logger.debug('verifying token');

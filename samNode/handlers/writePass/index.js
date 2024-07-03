@@ -1,5 +1,4 @@
 const jwt = require('jsonwebtoken');
-const { TransactWriteItemsCommand, TransactWriteItems, DynamoDBClient } = require('@aws-sdk/client-dynamodb');
 const { DateTime } = require('luxon');
 const {
   DEFAULT_PM_OPENING_HOUR,
@@ -8,7 +7,6 @@ const {
   TIMEZONE,
   checkPassExists,
   convertPassToReserved,
-  dynamodb,
   getFacility,
   getOne,
   getPark,
@@ -18,8 +16,10 @@ const {
   CustomError,
   logger,
   unmarshall,
-  //dynamoClient
-} = require('/opt/baseLayer');
+  dynamoClient,
+  TransactWriteItemsCommand,
+  UpdateItemCommand
+} = require('/opt/baseLayer'); 
 const {
   decodeJWT,
   deleteHoldToken,
@@ -36,7 +36,7 @@ const {
   sendExpirationSQS
 } = require('/opt/passLayer');
 const { createNewReservationsObj } = require('/opt/reservationLayer'); 
-const { generateRegistrationNumber } = require('/opt/jwtLayer')
+const { generateRegistrationNumber } = require('/opt/jwtLayer');
 const SECRET = process.env.JWT_SECRET || 'defaultSecret';
 const ALGORITHM = process.env.ALGORITHM || 'HS384';
 const HOLD_PASS_TIMEOUT = process.env.HOLD_PASS_TIMEOUT || '7m';
@@ -44,13 +44,10 @@ const HOLD_PASS_TIMEOUT = process.env.HOLD_PASS_TIMEOUT || '7m';
 // default opening/closing hours in 24h time
 const DEFAULT_AM_OPENING_HOUR = 7;
 
-
-const options = {
-  region: "ca-central-1",
-  endpoint: "http://172.17.0.2:8000"
-};
-const dynamoClient = new DynamoDBClient(options)
-
+process.on('unhandledRejection', (reason, promise) => {
+  console.log('Unhandled Rejection at:', promise, 'reason:', reason);
+  // Handle the error, throw, or exit gracefully as needed
+});
 
 exports.handler = async (event, context) => {
   logger.debug('WritePass:', event);
@@ -164,6 +161,7 @@ async function handleCommitPass(newObject, isAdmin) {
       // Check if the booking window is already active
       const currentPSTDateTime = DateTime.now().setZone(TIMEZONE);
       logger.info('Checking pass status based on current time');
+      console.log("Clear to here");
       const passStatus = checkPassStatusBasedOnCurrentTime(currentPSTDateTime,
                                                            bookingPSTDateTime,
                                                            type);
@@ -210,6 +208,7 @@ async function handleCommitPass(newObject, isAdmin) {
   const facilityData = await getFacility(decodedToken.parkOrcs, facilityName, false);
   logger.debug('facilityData', facilityData)
   logger.info('personalization')
+  console.log("facilityData: ", facilityData)
   let personalization = {
     firstName: firstName,
     lastName: lastName,
@@ -224,11 +223,12 @@ async function handleCommitPass(newObject, isAdmin) {
     parksLink: parkData.bcParksLink,
     ...(await getPersonalizationAttachment(parkData.sk, pass.registrationNumber, facilityData.qrcode))
   };
-
+  console.log("Personalization: ", personalization)
   // Send to GC Notify
   try {
     logger.info('Posting to GC Notify');
     await sendTemplateSQS(facilityData.type, personalization, pass);
+    console.log("after Awaiting send Template SQS ")
   } catch (err) {
     logger.info(
       `Sending SQS msg error, return 200 anyway. Registration number: ${JSON.stringify(
@@ -238,6 +238,9 @@ async function handleCommitPass(newObject, isAdmin) {
     logger.error(err.response?.data || err);
     return sendResponse(200, pass);
   }
+  console.log("About to return, Pass details: ", pass)
+  console.log("No error after sending to sqs GCNotify, pass registrationNumber: ", pass.registrationNumber)
+  return sendResponse(200, pass);
   // TODO: Remove JWT from hold pass area in database.
 }
 
@@ -490,44 +493,16 @@ async function transactWriteWithRetries(transactionObj, maxRetries = 3) {
   let res;
   try{
     do {
-        console.log("#")
-      //   logger.info('Writing Transact obj.');
-      //   logger.debug('Transact obj:', JSON.stringify(transactionObj));
-      //   res = await // The `.promise()` call might be on an JS SDK v2 client API.
-      //   // If yes, please remove .promise(). If not, remove this comment.
-      //   // The `.promise()` call might be on an JS SDK v2 client API.
-      //   // If yes, please remove .promise(). If not, remove this comment.
-      //   transactWriteItems(transactionObj);
-      //   logger.debug('Res:', res);
-      //   break; // Break out of the loop if transaction succeeds
-
       try {
         logger.info('Writing Transact obj.');
         logger.debug('Transact obj:', JSON.stringify(transactionObj));
-        //console.log(JSON.stringify(transactionObj, null, 3))
         const command = new TransactWriteItemsCommand({
           TransactItems: transactionObj.TransactItems
         });
-        console.log("This is after json transactionObj")
-
-        // TransactWriteItems(transactionObj)
-        //console.log("POST TRANSSACT COMMAND: ", JSON.stringify(command, null, 4));
-        //DO IS_OFFLINE CHECK HERE  REMOVE  setTimeOut FOR PROD/TEST/DEV
-        
-        //res = await dynamodb.send(command);
-        //setTimeout(1000)
-        // setTimeout(async () => {await dynamodb.send(command);}, 1000)
-        console.log("THIS IS THE COMMAND: ")
-        console.log(JSON.stringify(command, null, 3))
-        res = await dynamoClient.send(command)
-        console.log("AFTER SEND")
-        //res = await dynamodb.send(command);
-        console.log("Res from first dynamodb send (transactwriteitemscommand): ", res)
-        console.log("Past the dynamodbsend")
+        res = await dynamoClient.send(command);
         logger.debug('Res:', res);
         return
       } catch (error) {
-        console.log("Catch on 515")
         logger.info('Transaction failed:', error.code);
         logger.error(error);
         if (error.code === 'TransactionCanceledException') {
@@ -570,10 +545,8 @@ async function transactWriteWithRetries(transactionObj, maxRetries = 3) {
       }
     } while (retryCount < maxRetries);
   }catch(error){
-    console.log("catching")
     console.log(error)
   }
-  console.log("Dropping on line 555")
 };
 
 function checkFacilityData(facilityData, numberOfGuests) {
@@ -805,11 +778,8 @@ async function modifyPassCheckInStatus(pk, sk, checkedIn) {
     updateParams.UpdateExpression += ' remove checkedInTime';
   }
 
-  const res = await // The `.promise()` call might be on an JS SDK v2 client API.
-  // If yes, please remove .promise(). If not, remove this comment.
-  // The `.promise()` call might be on an JS SDK v2 client API.
-  // If yes, please remove .promise(). If not, remove this comment.
-  dynamodb.updateItem(updateParams)
+  const command = new UpdateItemCommand(updateParams);
+  const res = await dynamoClient.send(command);
   return sendResponse(200, unmarshall(res.Attributes));
 }
 

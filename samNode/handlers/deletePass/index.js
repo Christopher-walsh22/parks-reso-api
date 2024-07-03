@@ -2,7 +2,7 @@
 const jwt = require('jsonwebtoken');
 const { DateTime } = require('luxon');
 
-const { dynamodb, runQuery, TABLE_NAME, TIMEZONE, logger, sendResponse } = require('/opt/baseLayer');
+const { dynamoClient, runQuery, TABLE_NAME, TIMEZONE, logger, sendResponse, TransactWriteItemsCommand } = require('/opt/baseLayer');
 const { decodeJWT, resolvePermissions } = require('/opt/permissionLayer');
 const ALGORITHM = process.env.ALGORITHM || "HS384";
 
@@ -116,9 +116,9 @@ exports.handler = async (event, context) => {
 
       logger.info('Transaction Object length:', transactionObj.length);
 
-      const res = await // The `.promise()` call might be on an JS SDK v2 client API.
-      // If yes, please remove .promise(). If not, remove this comment.
-      dynamodb.transactWriteItems(transactionObj).promise();
+
+      const command = new TransactWriteItemsCommand(transactionObj)
+      const res = await dynamoClient.send(command);
       logger.debug('res:', res);
 
       // Prune audit
@@ -225,9 +225,9 @@ exports.handler = async (event, context) => {
 
         logger.info("Transaction Object Length:", transactionObj.length);
 
-        const res = await // The `.promise()` call might be on an JS SDK v2 client API.
-        // If yes, please remove .promise(). If not, remove this comment.
-        dynamodb.transactWriteItems(transactionObj).promise();
+       
+        const command = new TransactWriteItemsCommand(transactionObj);
+        const res = await dynamoClient.send(command);
         logger.debug('res:', res);
 
         logger.info("transactWriteItems Complete:");

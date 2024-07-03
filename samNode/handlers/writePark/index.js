@@ -1,7 +1,6 @@
-const AWS = require('/opt/baseLayer');
-const { dynamodb, TABLE_NAME, sendResponse, logger, unmarshall, marshall } = require('/opt/baseLayer');
+const { dynamoClient, TABLE_NAME, sendResponse, logger, unmarshall, marshall, UpdateItemCommand, PutItemCommand } = require('/opt/baseLayer');
 const { decodeJWT, resolvePermissions, getParkAccess } = require('/opt/permissionLayer');
-// const DynamoDB = require('/opt/baseLayer')
+
 
 exports.handler = async (event, context) => {
   if (!event || !event.headers) {
@@ -83,11 +82,8 @@ async function createItem(obj, context) {
   }
 
   logger.debug('putting item:', parkObject);
-  const res = await // The `.promise()` call might be on an JS SDK v2 client API.
-  // If yes, please remove .promise(). If not, remove this comment.
-  // The `.promise()` call might be on an JS SDK v2 client API.
-  // If yes, please remove .promise(). If not, remove this comment.
-  dynamodb.putItem(parkObject).promise();
+  const command = new PutItemCommand(parkObject);
+  const res = await dynamoClient.send(command);
   logger.info('Results:', res.length);
   logger.debug('res:', res);
   return sendResponse(200, res, context);
@@ -226,11 +222,8 @@ async function updateItem(obj, context) {
   updateParams.UpdateExpression = updateParams.UpdateExpression.slice(0, -1);
 
   logger.debug('Updating item:', updateParams);
-  const { Attributes } = await // The `.promise()` call might be on an JS SDK v2 client API.
-  // If yes, please remove .promise(). If not, remove this comment.
-  // The `.promise()` call might be on an JS SDK v2 client API.
-  // If yes, please remove .promise(). If not, remove this comment.
-  dynamodb.updateItem(updateParams).promise();
+  const command = new UpdateItemCommand(updateParams);
+  const { Attributes } = await dynamoClient.send(command);
   logger.info('Results:', Attributes);
   return sendResponse(200, unmarshall(Attributes), context);
 }

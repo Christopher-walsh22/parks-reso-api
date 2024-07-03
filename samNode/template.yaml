@@ -1063,6 +1063,7 @@ Resources:
   WritePassFunction:
     Type: AWS::Serverless::Function
     Properties: 
+      MemorySize: 1024
       CodeUri: handlers/writePass/
       Handler: index.handler
       Environment:

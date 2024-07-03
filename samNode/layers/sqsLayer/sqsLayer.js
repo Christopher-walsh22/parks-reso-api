@@ -1,9 +1,5 @@
 const AWS = require('/opt/baseLayer');
 const { logger, sqsSendMessage } = require('/opt/baseLayer');
-const options = {
-  region: process.env.AWS_REGION || 'ca-central-1'
-};
-
 
 exports.sendSQSMessage = async function (service, payload) {
   logger.info("SQSQUEUE:", process.env.SQSQUEUENAME);

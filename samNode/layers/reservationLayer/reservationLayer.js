@@ -1,6 +1,5 @@
-const { dynamodb, TABLE_NAME, TIMEZONE, runQuery, logger, marshall } = require('/opt/baseLayer');
+const { TABLE_NAME, TIMEZONE, runQuery, logger, marshall, dynamoClient, PutItemCommand, UpdateItemCommand } = require('/opt/baseLayer'); 
 const { DateTime } = require('luxon');
-
 // TODO: provide these as vars in Parameter Store
 const LOW_CAPACITY_THRESHOLD = process.env.LOW_CAPACITY_THRESHOLD || 0.25;
 const MODERATE_CAPACITY_THRESHOLD = process.env.MODERATE_CAPACITY_THRESHOLD || 0.75;
@@ -108,7 +107,8 @@ async function createNewReservationsObj(
 
   let res = null;
   try {
-    res = await dynamodb.putItem(reservationsObject).promise();
+    const command = new PutItemCommand(reservationsObject);
+    res = await dynamoClient.send(command);
     logger.debug(res);
   } catch (err) {
     // If this fails, that means the object already exists.
@@ -320,7 +320,8 @@ async function updateReservationsObjectMeta(pk, sk, status) {
     ReturnValues: 'ALL_NEW'
   };
   logger.debug('updateReservationsObject:', updateReservationsObject);
-  const res = await dynamodb.updateItem(updateReservationsObject).promise();
+  const command = new UpdateItemCommand(updateReservationsObject);
+  const res = await dynamoClient.send(command);
   logger.debug('Reservation object updated:' + res);
   return res.Attributes;
 }
@@ -347,7 +348,8 @@ async function updateReservationsObjectCapacity(pk, sk, type, newBaseCapacity, n
     ReturnValues: 'ALL_NEW'
   };
   logger.debug('updateReservationsObject:', updateReservationsObject);
-  const res = await dynamodb.updateItem(updateReservationsObject).promise();
+  const command = new UpdateItemCommand(updateReservationsObject)
+  const res = await dynamoClient.send(command);
   logger.debug('Reservation object updated:' + res);
   return res.Attributes;
 }
@@ -408,7 +410,8 @@ async function reverseOverbookedPasses(passes, newResAvailability) {
       ReturnValues: 'ALL_NEW'
     };
     try {
-      const res = await dynamodb.updateItem(updatePassObject).promise();
+      const command = new UpdateItemCommand(updatePassObject);
+      const res = await dynamoClient.send(command);
       logger.debug('Reversed pass overbooked status', res);
     } catch (error) {
       logger.error('Error occured while updating pass in reverseOverbookedPasses');
@@ -465,7 +468,8 @@ async function updatePassObjectsAsOverbooked(facilityName, shortPassDate, type, 
       ReturnValues: 'ALL_NEW'
     };
     try {
-      const res = await dynamodb.updateItem(updatePassObject).promise();
+      const command = new UpdateItemCommand(updatePassObject);
+      const res = await dynamoClient.send(command);
       logger.debug('Pass set to overbooked', res);
     } catch (error) {
       logger.error('Error occured while updating pass in updatePassObjectsAsOverbooked');

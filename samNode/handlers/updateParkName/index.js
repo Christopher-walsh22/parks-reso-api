@@ -1,4 +1,4 @@
-const { dynamodb, TABLE_NAME, getParks, getFacilities, sendResponse, logger } = require('/opt/baseLayer');
+const { dynamoClient, PutItemCommand, TABLE_NAME, getParks, getFacilities, sendResponse, logger, UpdateItemCommand } = require('/opt/baseLayer');
 const { getCurrentDisplayNameById } = require('/opt/dataRegisterLayer');
 
 // This function queries the bcparks database for park names. 
@@ -46,9 +46,8 @@ async function updateDisplayName(park, newName) {
       ReturnValues: 'ALL_NEW'
     }
 
-    await // The `.promise()` call might be on an JS SDK v2 client API.
-    // If yes, please remove .promise(). If not, remove this comment.
-    dynamodb.updateItem(updatePark).promise();
+    const command = new UpdateItemCommand(updatePark);
+    dynamoClient.send(command);
 
     // update park name in facilities
     const facilities = await getFacilities(park.orcs);
@@ -67,9 +66,8 @@ async function updateDisplayName(park, newName) {
         ReturnValues: 'ALL_NEW'
       }
 
-      await // The `.promise()` call might be on an JS SDK v2 client API.
-      // If yes, please remove .promise(). If not, remove this comment.
-      dynamodb.updateItem(updateFacility).promise();
+      const command = new UpdateItemCommand(updateFacility);
+      dynamoClient.send(command);
     }
 
     logger.info(`Park name updated for ${park.orcs}: ${oldName} is now ${newName}`);

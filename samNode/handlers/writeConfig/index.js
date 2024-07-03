@@ -1,4 +1,4 @@
-const { dynamodb, TABLE_NAME, sendResponse, logger, marshall } = require('/opt/baseLayer');
+const { dynamoClient, PutItemCommand, TABLE_NAME, sendResponse, logger, marshall } = require('/opt/baseLayer');
 
 exports.handler = async (event, context) => {
   const permissionObject = event.requestContext.authorizer;
@@ -21,9 +21,8 @@ exports.handler = async (event, context) => {
     configObject.Item['configData'] = { M: marshall(newObject) };
 
     logger.debug('putting item:', configObject);
-    const res = await // The `.promise()` call might be on an JS SDK v2 client API.
-    // If yes, please remove .promise(). If not, remove this comment.
-    dynamodb.putItem(configObject).promise();
+    const command = new PutItemCommand(configObject)
+    let res = dynamoClient.send(command);
     logger.debug('res:', res);
     return sendResponse(200, res);
   } catch (err) {

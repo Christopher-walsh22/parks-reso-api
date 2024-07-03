@@ -1,9 +1,9 @@
-const AWS = require('/opt/baseLayer');
-const { runQuery, TABLE_NAME, META_TABLE_NAME, TIMEZONE, dynamodb, getParks, getFacilities, getPark, sendResponse, logger, marshall } = require('/opt/baseLayer');
+const { runQuery, TABLE_NAME, META_TABLE_NAME, TIMEZONE, dynamoClient, getParks, getFacilities, getPark, sendResponse, logger, marshall, PutItemCommand } = require('/opt/baseLayer');
 const { gcnSend } = require('/opt/gcNotifyLayer');
 const { webhookPost } = require('/opt/webHookLayer'); 
 const { DateTime } = require('luxon');
 const { sendSMSMessage } = require('/opt/smsLayer');
+
 
 // Default look-ahead days.
 const LOOK_AHEAD_DAYS = 1;
@@ -234,10 +234,11 @@ async function postBulkReminderSummary(data, jobError, passArray) {
       Item: marshall(postItem),
       ConditionExpression: 'attribute_not_exists(pk) AND attribute_not_exists(sk)',
     };
-    await // The `.promise()` call might be on an JS SDK v2 client API.
-    // If yes, please remove .promise(). If not, remove this comment.
-    dynamodb.putItem(postObj).promise();
+
+    const command = new PutItemCommand(postObj);
+    const res = await dynamoClient.send(command);
     logger.debug('Posted bulkReminderSummary to database:', postItem);
+    logger.info("Response PostBulkReminder")
     return postItem;
   } catch (err) {
     try {

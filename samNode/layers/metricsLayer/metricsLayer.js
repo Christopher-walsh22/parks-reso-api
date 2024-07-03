@@ -1,6 +1,6 @@
 const AWS = require('/opt/baseLayer');
 const { DateTime } = require("luxon");
-const { METRICS_TABLE_NAME, TABLE_NAME, TIMEZONE, runQuery, dynamodb, getOne, logger, marshall, unmarshall } = require("/opt/baseLayer");
+const { METRICS_TABLE_NAME, TABLE_NAME, TIMEZONE, runQuery, dynamoClient, getOne, logger, marshall, unmarshall, TransactWriteItemsCommand } = require("/opt/baseLayer");
 const { checkPassesRequired } = require("/opt/reservationLayer");
 
 const MAX_TRANSACTION_SIZE = 25;
@@ -142,9 +142,11 @@ async function postAllMetrics(metrics) {
 
   // Execute the transactions
   try {
+    let command;
     for (const transaction of transactions) {
       try {
-        await dynamodb.transactWriteItems(transaction).promise();
+        command = new TransactWriteItemsCommand(transaction)
+        await dynamoClient.send(command);
         successes += transaction.TransactItems.length;
       } catch (error) {
         errors.push(error);

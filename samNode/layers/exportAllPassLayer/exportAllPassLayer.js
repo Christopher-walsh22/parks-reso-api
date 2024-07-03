@@ -1,5 +1,5 @@
 const AWS = require("/opt/baseLayer");
-const { dynamodb, marshall } = require("/opt/baseLayer");
+const { dynamoClient, PutItemCommand, marshall } = require("/opt/baseLayer");
 const crypto = require("crypto");
 
 function convertRolesToMD5(roles, prefix = "") {
@@ -24,7 +24,8 @@ async function updateJobEntry(jobObj, tableName) {
     TableName: tableName,
     Item: newObject,
   };
-  await dynamodb.putItem(putObject).promise();
+  const command = new PutItemCommand(putObject)
+  await dynamoClient.send(command)
 }
 
 module.exports = {

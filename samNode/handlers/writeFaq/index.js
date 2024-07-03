@@ -1,4 +1,4 @@
-const { dynamodb, TABLE_NAME, sendResponse, logger, unmarshall } = require('/opt/baseLayer');
+const { dynamoClient, TABLE_NAME, sendResponse, logger, unmarshall, UpdateItemCommand } = require('/opt/baseLayer');
 const { decodeJWT, resolvePermissions } = require('/opt/permissionLayer');
 
 exports.handler = async (event, context) => {
@@ -42,9 +42,8 @@ async function updateItem(obj, context) {
         TableName: TABLE_NAME,
         ConditionExpression: 'attribute_exists(pk)',
       };
-      const { Attributes } = await // The `.promise()` call might be on an JS SDK v2 client API.
-      // If yes, please remove .promise(). If not, remove this comment.
-      dynamodb.updateItem(updateParams).promise();
+      const command = new UpdateItemCommand(updateParams);
+      const { Attributes } = await dynamoClient.send(command);
       logger.info('Results:', Attributes);
       return sendResponse(200, unmarshall(Attributes), context);  
   }else{

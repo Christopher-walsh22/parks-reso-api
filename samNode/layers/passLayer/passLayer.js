@@ -1,9 +1,7 @@
 const qrcode = require('qrcode');
-const { runQuery, TABLE_NAME, TIMEZONE, getOne, DEFAULT_BOOKING_DAYS_AHEAD, DEFAULT_PM_OPENING_HOUR, logger, CustomError, unmarshall, sqsSendMessage } = require('/opt/baseLayer');
+const { runQuery, TABLE_NAME, TIMEZONE, getOne, DEFAULT_BOOKING_DAYS_AHEAD, DEFAULT_PM_OPENING_HOUR, logger, CustomError, unmarshall, sqsClient, SendMessageCommand } = require('/opt/baseLayer');
 const { DateTime } = require('luxon');
-const IS_OFFLINE = require('/opt/baseLayer')
-
-//const { dynamodb } = require('../BaseLayer/baseLayer');
+const IS_OFFLINE = require('/opt/baseLayer');
 
 // default opening/closing hours in 24h time
 // const options = {
@@ -21,6 +19,12 @@ const DEFAULT_AM_OPENING_HOUR = 7;
  * @returns {object} - The updated pass object.
  */
 async function sendTemplateSQS(facilityType, personalisation, passObject) {
+
+  if(IS_OFFLINE){
+    console.log("OFFLINE no sqs")
+    return passObject
+  }
+  console.log("In sendTEmplateSQS, PassObject: ", passObject)
   let gcNotifyTemplate;
   // Parking?
   if (facilityType === 'Parking') {
@@ -28,16 +32,28 @@ async function sendTemplateSQS(facilityType, personalisation, passObject) {
   } else {
     gcNotifyTemplate = process.env.GC_NOTIFY_TRAIL_RECEIPT_TEMPLATE_ID;
   }
-  const gcnData = {
-    email_address: passObject.email,
-    template_id: gcNotifyTemplate,
-    personalisation: personalisation
-  };
-
   // Push this email job onto the queue so we can return quickly to the front-end
+const params = {
+  QueueUrl: process.env.SQSQUEUENAME,
+  MessageAttributes: {
+    "email_address": {
+      DataType: "String",
+      StringValue: passObject.email_address
+    },
+    "template_id": {
+      DataType: "String",
+      StringValue: gcNotifyTemplate
+    },
+    "personalisation": {
+      DataType: "String",
+      StringValue: JSON.stringify(personalisation)
+    },
+  }
+}
+  const command = new SendMessageCommand(params)
   logger.info('Sending to SQS');
-  await sendSQSMessage('GCN', gcnData);
-  logger.info('Sent');
+  data = await sqsClient.send(command);
+  logger.info('Sent: ', data);
 
   logger.info(
     `Pass successfully created. Registration number: ${JSON.stringify(
@@ -54,19 +70,25 @@ async function sendExpirationSQS(){
       MessageBody: `SQS Message at ${(new Date()).toISOString()}`,
       QueueUrl: process.env.SQSEXPIRY_QUEUE,
     };
-    logger.info("Sending SQS");
+    logger.info("Sending expiry SQS");
     //remove promises? 
     if (process.env.IS_OFFLINE === 'true'){
       //No sqs for local
       return
     }
-    await sqsSendMessage(params);
+    const command = new SendMessageCommand(params);
+    const data = await sqsClient.send(command);
+    logger.info("Expiry SQS Sent: ", data)
   } catch (e) {
     logger.error(e);
   }
 
 }
 async function sendSQSMessage(service, payload) {
+  if(IS_OFFLINE){
+    logger.info("OFFLINE NO SQS");
+    return
+  }
   logger.info("SQSQUEUE:", process.env.SQSQUEUENAME);
   try {
     const params = {
@@ -91,13 +113,16 @@ async function sendSQSMessage(service, payload) {
         }
       }
     };
+
+    command = new SendMessageCommand(params);
     logger.info("Sending SQS");
     console.log("ABOUT TO SEND SQSMESSAGE")
-    await sqsSendMessage(params);
+    const data = await sqsClient.send(command)
+    console.log("Response from sqsSend: ", data);
   } catch (e) {
     logger.error(e);
   }
-}
+} 
 
 async function getPersonalizationAttachment(parkIdentifier, registrationNumber, qrCode = false) {
   if (qrCode) {

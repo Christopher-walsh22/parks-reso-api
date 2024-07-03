@@ -1,5 +1,5 @@
-const AWS = require('/opt/baseLayer');
-const { dynamodb, TABLE_NAME, logger, unmarshall } = require('/opt/baseLayer');
+
+const { dynamoClient, UpdateItemCommand, TABLE_NAME, logger, unmarshall } = require('/opt/baseLayer');
 
 async function setFacilityLock(pk, sk) {
   const facilityLockObject = {
@@ -18,7 +18,8 @@ async function setFacilityLock(pk, sk) {
   };
   try {
     logger.debug('facilityLockObject', facilityLockObject);
-    const { Attributes } = await dynamodb.updateItem(facilityLockObject).promise();
+    const command = new UpdateItemCommand(facilityLockObject)
+    const { Attributes } = await dynamoClient.send(command);
     return unmarshall(Attributes);
   } catch (error) {
     logger.error(error);
@@ -44,7 +45,8 @@ async function unlockFacility(pk, sk) {
       ReturnValues: 'ALL_NEW'
     };
     logger.debug('facilityLockObject', facilityLockObject);
-    await dynamodb.updateItem(facilityLockObject).promise();
+    const command = new UpdateItemCommand(facilityLockObject);
+    await dynamoClient.send(command);
   } catch (error) {
     logger.error(error);
     // TODO: Retry this until we can unlock facility.

@@ -1,4 +1,4 @@
-const dynamoLayer = require('/opt/baseLayer');
+const {restoreAvailablePass} = require('/opt/baseLayer');
 const jwt = require('jsonwebtoken');
 const { logger } = require('/opt/baseLayer');
 
@@ -16,7 +16,7 @@ exports.handler = async (event, context) => {
     try {
       logger.debug(item);
       const token = jwt.decode(item.sk);
-      await dynamoLayer.restoreAvailablePass(item.pk,
+      await restoreAvailablePass(item.pk,
                                             item.sk,
                                             token.parkOrcs,
                                             token.shortPassDate,

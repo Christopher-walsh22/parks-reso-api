@@ -1,9 +1,9 @@
 // dynamoUtils Vars
 
-const { DynamoDB, transactWriteItems, TransactWriteItemsCommand, TransactWriteCommand, PutItemCommand, DynamoDBClient } = require('@aws-sdk/client-dynamodb');
+const { ScanCommand, QueryCommand, transactWriteItems, TransactWriteItemsCommand, TransactWriteCommand, DeleteItemCommand, PutItemCommand, DynamoDBClient, UpdateItemCommand, GetItemCommand } = require('@aws-sdk/client-dynamodb');
 const { Lambda } = require('@aws-sdk/client-lambda');
 const { S3 } = require('@aws-sdk/client-s3');
-const { SQS } = require('@aws-sdk/client-sqs');
+const { SQSClient, SendMessageCommand  } = require('@aws-sdk/client-sqs');
 const { DateTime } = require('luxon');
 const { marshall, unmarshall } = require('@aws-sdk/util-dynamodb');
 
@@ -16,7 +16,8 @@ const options = {
   region: AWSREGION,
   endpoint: DYNAMODB_ENDPOINT_URL
 };
-if (process.env.IS_OFFLINE === 'true') {
+const IS_OFFLINE = process.env.IS_OFFLINE || false
+if (IS_OFFLINE) {
   // If offline point at local
   options.endpoint = 'http://172.17.0.2:8000';
 }
@@ -36,7 +37,7 @@ const PASS_TYPE_EXPIRY_HOURS = {
   DAY: 0
 };
 const DEFAULT_BOOKING_DAYS_AHEAD = 3;
-const dynamodb = new DynamoDB(options);
+// const dynamodb = new DynamoDB(options);
 const dynamoClient = new DynamoDBClient(options)
 // exports.dynamodb = new AWS.DynamoDB();
 
@@ -89,8 +90,8 @@ async function setStatus(passes, status) {
       ReturnValues: 'ALL_NEW',
       TableName: TABLE_NAME
     };
-
-    const res = await dynamodb.updateItem(updateParams);
+    const command = new UpdateItemCommand(updateParams);
+    const res = await dynamoClient.send(command);
     logger.info(`Set status of ${res.Attributes?.type?.S} pass ${res.Attributes?.sk?.S} to ${status}`);
   }
 }
@@ -102,7 +103,8 @@ async function getOne(pk, sk) {
     TableName: TABLE_NAME,
     Key: marshall({ pk, sk })
   };
-  let item = await dynamodb.getItem(params);
+  const command = new GetItemCommand(params)
+  let item = await dynamoClient.send(command);
   
   return item?.Item || {};
 }
@@ -115,13 +117,13 @@ async function runQuery(query, paginated = false) {
   let data = [];
   let pageData = [];
   let page = 0;
-
+  let command = new QueryCommand(query)
   do {
     page++;
     if (pageData?.LastEvaluatedKey) {
-      query.ExclusiveStartKey = pageData.LastEvaluatedKey;
+      command.input.ExclusiveStartKey = pageData.LastEvaluatedKey;
     };
-    pageData = await dynamodb.query(query);
+    pageData = await dynamoClient.send(command);
     data = data.concat(pageData.Items.map(item => {
       return unmarshall(item);
     }));
@@ -151,13 +153,13 @@ async function runScan(query, paginated = false) {
   let data = [];
   let pageData = [];
   let page = 0;
-
+  let command = new ScanCommand(query)
   do {
     page++;
     if (pageData?.LastEvaluatedKey) {
-      query.ExclusiveStartKey = pageData.LastEvaluatedKey;
+      command.input.ExclusiveStartKey = pageData.LastEvaluatedKey;
     };
-    pageData = await dynamodb.scan(query);
+    pageData = await dynamoClient.send(command);
     data = data.concat(pageData.Items.map(item => {
       return unmarshall(item);
     }));
@@ -315,17 +317,9 @@ async function storeObject(object, tableName = TABLE_NAME) {
     try {
       console.log("In Store object try for putitem command")
       const command = new PutItemCommand(params)
-  
       logger.debug('PutItem COmmand:', command);
-      console.log("params for PUT: ", params)
-      console.log("Command for put: ", command)
-      response = await dynamodb.send(command) // Gets past but doesnt put......
-      //const response = await dynamodb.send(command)
-      //setTimeout( async () => { data = await dynamoClient.send(command)}, 1000);
+      res = await dynamoClient.send(command) 
       logger.info(`Stored object: ${object.sk}`);
-      console.log("Data from put item: ", response);
-      //logger.debug('DynamoDB response:', data);
-      
       return res; 
     } catch (err) {
       logger.error(`Error storing object: ${object.sk}`, err);
@@ -376,16 +370,19 @@ async function checkPassExists(facilityName, email, type, bookingPSTShortDate) {
       ':active': { S: 'active' }
     }
   };
+  
 
   if (!/^\d{4}-\d{2}-\d{2}$/.test(bookingPSTShortDate)) {
     throw new CustomError('Invalid booking date.', 400);
   }
 
+  const command = new QueryCommand(existingPassCheckObject);
   let existingItems;
   try {
-    logger.info('Running existingPassCheckObject');
+    logger.info('Running existingPassCheckObject'); 
     logger.debug(JSON.stringify(existingPassCheckObject));
-    existingItems = await dynamodb.query(existingPassCheckObject);
+    existingItems = await dynamoClient.send(command);
+    console.log("Existing Items: ", existingItems)
   } catch (error) {
     logger.info('Error while running query for existingPassCheckObject');
     logger.error(error);
@@ -455,7 +452,9 @@ async function convertPassToReserved(decodedToken, passStatus, firstName, lastNa
     updateParams.ExpressionAttributeValues[':phoneNumber'] = { S: phoneNumber };
     updateParams.UpdateExpression += ', phoneNumber = :phoneNumber';
   };
-  const res = await dynamodb.updateItem(updateParams);
+  const command = new UpdateItemCommand(updateParams);
+  const res = await dynamoClient.send(command);
+  console.log("Convert Pass to Reserved Response: ", res)
   if (Object.keys(res.Attributes).length === 0) {
     logger.info(`Set status of ${res.Attributes?.type?.S} pass ${res.Attributes?.sk?.S} to ${passStatus}`);
     throw new CustomError('Operation Failed', 400);
@@ -493,15 +492,18 @@ async function getAllStoredJWTs(expired = false) { //optional if expired or all 
     };
   }
   try {
+
     let items = [];
     let data;
+    let command = new QueryCommand(params)
     do {
+      console.log("Command for get all JWT")
       console.log('Querying DynamoDB...');
-      data = await dynamodb.query(params);
+      data = await dynamoClient.send(command);
       for(const item of data.Items) {
         items.push(unmarshall(item));
       }
-      params.ExclusiveStartKey = data.LastEvaluatedKey;
+      command.input.ExclusiveStartKey = data.LastEvaluatedKey;
     } while (typeof data.LastEvaluatedKey != "undefined");
 
     logger.info('Length of all stored JWTs:', items.length);
@@ -566,7 +568,8 @@ async function restoreAvailablePass(pk, sk, orcNumber, shortPassDate, facilityNa
           }
         }]
     };
-    setTimeout(async () => { res = dynamodb.transactWriteItems(transactionParams)}, 1000);
+    const command = new TransactWriteCommand(transactionParams)
+    res = dynamoClient.send(command);
     logger.info(`added: ${numberOfGuests} back to ${facilityName}`);
   } catch (error) {
     logger.error('Error updating available passes:', error);
@@ -634,8 +637,7 @@ const logger = createLogger({
 // const unmarshall = AWS.DynamoDB.Converter.unmarshall
 // const marshall = AWS.DynamoDB.Converter.marshall
 // const AWSinput = AWS.DynamoDB.Converter.input
-const sqs = new SQS(options)
-const sqsSendMessage = sqs.sendMessage
+const sqsClient = new SQSClient(options)
 const s3 = new S3();
 const lambda = new Lambda(options);
 const invoke = lambda.invoke
@@ -655,6 +657,7 @@ module.exports = {
   TABLE_NAME,
   META_TABLE_NAME,
   METRICS_TABLE_NAME,
+  IS_OFFLINE,
   
   // Functions
   setStatus,
@@ -680,15 +683,19 @@ module.exports = {
   
   // AWS Services
   dynamoClient,
-  dynamodb,
-  sqsSendMessage, // Assuming sqs is imported elsewhere
+  //dynamodb,
+  sqsClient, // Assuming sqs is imported elsewhere
+  SendMessageCommand,
   unmarshall,
   marshall,
   s3,
   lambda,
   invoke,
   transactWriteItems,
+  TransactWriteItemsCommand,
   TransactWriteCommand,
+  DeleteItemCommand,
+  UpdateItemCommand,
   //luxon
   DateTime
 };
