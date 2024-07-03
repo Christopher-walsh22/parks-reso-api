@@ -459,6 +459,8 @@ async function convertPassToReserved(decodedToken, passStatus, firstName, lastNa
     logger.info(`Set status of ${res.Attributes?.type?.S} pass ${res.Attributes?.sk?.S} to ${passStatus}`);
     throw new CustomError('Operation Failed', 400);
   }
+  console.log("BASE LAYER CREATING PASS FROM REServerd: ", res)
+  console.log("Attributes", res.Attributes)
   return unmarshall(res.Attributes);
 }
 
@@ -696,6 +698,7 @@ module.exports = {
   TransactWriteCommand,
   DeleteItemCommand,
   UpdateItemCommand,
+  PutItemCommand,
   //luxon
   DateTime
 };

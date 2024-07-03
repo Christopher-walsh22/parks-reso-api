@@ -181,7 +181,9 @@ async function handleCommitPass(newObject, isAdmin) {
                                          email,
                                          phoneNumber);
       logger.debug(JSON.stringify(pass));
-
+      pass.registrationNumber = decodedToken.sk
+      
+      console.log("Pass after conversion: ", pass);
       // delete the audit property before returning back to FE.
       delete pass.audit;
     } catch (error) {
@@ -350,6 +352,7 @@ async function handleHoldPass(newObject, isAdmin) {
 
     logger.info('Creating pass object');
     const registrationNumber = generateRegistrationNumber(10);
+    console.log("regy num outside gen regynum", registrationNumber)
     console.log("after generateRegistration number: ")
     // // Create the base pass object
     let passObject = createPassObject(
@@ -386,8 +389,9 @@ async function handleHoldPass(newObject, isAdmin) {
     logger.info('Creating reservations object');
     // We need to ensure that the reservations object exists.
     // Attempt to create reservations object. If it fails, so what...
+    console.log("ABOUT TO AWAIT CREATE NEW RESERVATION OBJ")
     await createNewReservationsObj(facilityData, reservationsObjectPK, bookingPSTShortDate);
-
+    console.log("did the create")
     logger.info('numberOfGuests:', numberOfGuests);
 
     // // Perform a transaction where we decrement the available passes and create the pass

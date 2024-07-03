@@ -80,7 +80,7 @@ Parameters:
     Default: '/pass-management/check-in'
   GCNotifyPublicFrontend:
     Type: String
-    Default: 'Public Frontend Key'
+    Default: 'http://localhost:4300/dayuse'
   GCNotifyReminderTemplateID:
     Type: String
     Default: 'SSSSSS'
@@ -1069,6 +1069,8 @@ Resources:
       Environment:
         Variables:
           METRICS_TABLE_NAME: !Ref MetricsTableName
+          PUBLIC_FRONTEND: !Ref GCNotifyPublicFrontend
+          PASS_CANCELLATION_ROUTE: !Ref GCNotifyPassCancellationRoute
           META_TABLE_NAME: !Ref MetaTableName
           LOG_LEVEL: !Ref LogLevel
           PASS_MANAGEMENT_ROUTE: !Ref GCNotifyPassManagementRoute

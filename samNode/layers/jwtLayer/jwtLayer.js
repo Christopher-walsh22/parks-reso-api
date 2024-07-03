@@ -43,7 +43,9 @@ function verifyJWT(token) {
 
 function generateRegistrationNumber(count) {
   // TODO: Make this better
-  return Math.random().toString().substr(count);
+  let regyNum = Math.random().toString().substr(count);
+  console.log("REGGY NUM: ", regyNum)
+  return regyNum
 }
 
 module.exports = {
