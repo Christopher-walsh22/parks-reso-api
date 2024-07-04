@@ -1,11 +1,9 @@
-const { runQuery, TABLE_NAME, logger } = require('/opt/baseLayer');
-const { sendResponse, checkWarmup } = require('/opt/responseLayer');
-
+const { runQuery, TABLE_NAME, logger, sendResponse, checkWarmup} = require('/opt/baseLayer');
 
 exports.handler = async (event, context) => {
   logger.debug('Read Config', event);
 
-  if (event.httpMethod === 'OPTIONS') {
+  if (event?.httpMethod === 'OPTIONS') {
     return sendResponse(200, {}, 'Success', null, context);
   }
   

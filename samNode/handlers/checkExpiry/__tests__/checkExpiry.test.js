@@ -3,9 +3,9 @@ const { DateTime } = require('luxon');
 const AWS = require('aws-sdk');
 const { DocumentClient } = require('aws-sdk/clients/dynamodb');
 
-const checkExpiry = require('../lambda/checkExpiry/index');
+const checkExpiry = require('../index');
 
-const { REGION, ENDPOINT, TABLE_NAME } = require('./global/settings');
+const { REGION, ENDPOINT, TABLE_NAME } = require('../../../__tests__/settings');
 
 let docClient;
 

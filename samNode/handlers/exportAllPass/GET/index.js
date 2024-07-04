@@ -27,7 +27,7 @@ const EXPIRY_TIME = process.env.EXPORT_EXPIRY_TIME
 exports.handler = async (event, context) => {
   logger.info('Export all pass', event);
 
-  if (event.httpMethod === 'OPTIONS') {
+  if (event?.httpMethod === 'OPTIONS') {
     return sendResponse(200, {}, 'Success', null, context);
   }
 

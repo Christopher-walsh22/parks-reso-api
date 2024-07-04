@@ -4,7 +4,7 @@ const { decodeJWT, roleFilter, resolvePermissions } = require('/opt/permissionLa
 exports.handler = async (event, context) => {
   logger.info('Read Park', event);
 
-  if (event.httpMethod === 'OPTIONS') {
+  if (event?.httpMethod === 'OPTIONS') {
     return sendResponse(200, {}, 'Success', null, context);
   }
   

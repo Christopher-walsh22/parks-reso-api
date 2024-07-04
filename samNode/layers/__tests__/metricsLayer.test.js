@@ -1,6 +1,6 @@
 const AWS = require('aws-sdk');
 const { DocumentClient } = require('aws-sdk/clients/dynamodb');
-const { REGION, ENDPOINT, TABLE_NAME, TIMEZONE } = require('./global/settings');
+const { REGION, ENDPOINT, TABLE_NAME, TIMEZONE } = require('../../__tests__/settings');
 const jwt = require('jsonwebtoken');
 const { DateTime } = require('luxon');
 const ALGORITHM = process.env.ALGORITHM || "HS384";
@@ -104,7 +104,7 @@ describe('Read Metrics General', () => {
   });
 
   test('Unauthorized', async () => {
-    const readMetricsHandler = require('../lambda/readMetrics/index');
+    const readMetricsHandler = require('../../handlers/readMetrics/index');
     const event = {
       headers: {
         Authorization: 'Bearer ' + token + 'invalid'
@@ -118,10 +118,10 @@ describe('Read Metrics General', () => {
   });
 
   test('Missing query parameters', async () => {
-    jest.mock('../lambda/permissionUtil', () => {
+    jest.mock('/opt/permissionLayer', () => {
       return mockedSysadmin;
     });
-    const readMetricsHandler = require('../lambda/readMetrics/index');
+    const readMetricsHandler = require('../../handlers/readMetrics/index');
     const event = {
       headers: {
         Authorization: 'Bearer ' + token
@@ -135,10 +135,10 @@ describe('Read Metrics General', () => {
   })
 
   test('Specific park authentication - user does not have specific park', async () => {
-    jest.mock('../lambda/permissionUtil', () => {
+    jest.mock('/opt/permissionLayer', () => {
       return mockedRoleBasedUser;
     });
-    const readMetricsHandler = require('../lambda/readMetrics/index');
+    const readMetricsHandler = require('../../handlers/readMetrics/index');
     const event = {
       headers: {
         Authorization: 'Bearer ' + token
@@ -157,10 +157,10 @@ describe('Read Metrics General', () => {
   })
 
   test('Invalid dates', async () => {
-    jest.mock('../lambda/permissionUtil', () => {
+    jest.mock('/opt/permissionLayer', () => {
       return mockedSysadmin;
     });
-    const readMetricsHandler = require('../lambda/readMetrics/index');
+    const readMetricsHandler = require('../../handlers/readMetrics/index');
     const event = {
       headers: {
         Authorization: 'Bearer ' + token
@@ -189,12 +189,12 @@ describe('Read Metrics General', () => {
   })
 
   test('Valid response', async () => {
-    jest.mock('../lambda/permissionUtil', () => {
+    jest.mock('/opt/permissionLayer', () => {
       return mockedSysadmin;
     });
     // no such thing as metrics table in test
     process.env.METRICS_TABLE_NAME = TABLE_NAME;
-    const readMetricsHandler = require('../lambda/readMetrics/index');
+    const readMetricsHandler = require('../../handlers/readMetrics/index');
     const event = {
       headers: {
         Authorization: 'Bearer ' + token
@@ -230,7 +230,7 @@ describe('Metrics utils general', () => {
   });
 
   test('Create metric - today - simple', async () => {
-    const { createMetric } = require('../lambda/metricsUtils');
+    const { createMetric } = require('../metricsLayer/metricsLayer');
     const res = await createMetric(mockPark, mockFacility, today.toISODate());
     expect(res.sk).toEqual(today.toISODate());
     expect(res.cancelled).toEqual(0);
@@ -250,7 +250,7 @@ describe('Metrics utils general', () => {
   })
 
   test('Create metric - tomorrow, fully booked, 1 overbooked', async () => {
-    const { createMetric } = require('../lambda/metricsUtils');
+    const { createMetric } = require('../metricsLayer/metricsLayer');
     const res = await createMetric(mockPark, mockFacility, tomorrow.toISODate());
     expect(res.sk).toEqual(tomorrow.toISODate());
     expect(res.cancelled).toEqual(0);
@@ -270,7 +270,7 @@ describe('Metrics utils general', () => {
   })
 
   test('Create metric - yesterday, 1 cancellation, 1 expired', async () => {
-    const { createMetric } = require('../lambda/metricsUtils');
+    const { createMetric } = require('../metricsLayer/metricsLayer');
     const res = await createMetric(mockPark, mockFacility, yesterday.toISODate());
     expect(res.sk).toEqual(yesterday.toISODate());
     expect(res.cancelled).toEqual(1);
@@ -312,7 +312,7 @@ describe('Metrics post', () => {
   });
 
   test('Post all metrics', async () => {
-    const { postAllMetrics } = require('../lambda/metricsUtils');
+    const { postAllMetrics } = require('../metricsLayer/metricsLayer');
     const res = await postAllMetrics(newMetricsList);
     // Three new metrics were created
     expect(res).toEqual(3);

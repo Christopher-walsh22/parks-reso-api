@@ -3,7 +3,7 @@ const { decodeJWT, resolvePermissions, getParkAccess } = require('/opt/permissio
 
 exports.handler = async (event, context) => {
   logger.debug('Read Facility', event);
-  if (event.httpMethod === 'OPTIONS') {
+  if (event?.httpMethod === 'OPTIONS') {
     return sendResponse(200, {}, 'Success', null, context);
   }
   

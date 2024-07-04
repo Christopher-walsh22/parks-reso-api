@@ -107,11 +107,8 @@ async function createNewReservationsObj(
 
   let res = null;
   try {
-    console.log("About to put item reservation command")
     const command = new PutItemCommand(reservationsObject);
-    console.log("PUT RES COMMAND: ", command)
     res = await dynamoClient.send(command);
-    console.log("RES FROM CREATE RES OBJECT: ", res)
     logger.debug(res);
   } catch (err) {
     // If this fails, that means the object already exists.

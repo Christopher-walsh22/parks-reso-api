@@ -10,16 +10,18 @@ const ALGORITHM = process.env.ALGORITHM || "HS384";
 exports.handler = async (event, context) => {
   logger.debug('Read Pass', event);
   
-  if (event.httpMethod === 'OPTIONS') {
+  if (event?.httpMethod === 'OPTIONS') {
     return sendResponse(200, {}, 'Success', null, context);
   }
 
   if (checkWarmup(event)) {
     return sendResponse(200, {});
   }
+
   let queryObj = {
     TableName: TABLE_NAME
   };
+  
   try {
     if (!event.queryStringParameters) {
       return sendResponse(400, { msg: 'Invalid Request' }, context);

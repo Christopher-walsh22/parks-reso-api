@@ -11,7 +11,7 @@ const mockDataRegistryUtils = {
   })
 }
 
-const { REGION, ENDPOINT, TABLE_NAME } = require('./global/settings');
+const { REGION, ENDPOINT, TABLE_NAME } = require('../../../__tests__/settings');
 
 let docClient;
 
@@ -63,11 +63,11 @@ describe('updateParkNameHandler', () => {
   });
 
   test('Name update changes if necessary', async () => {
-    jest.mock('../lambda/dataRegisterUtils', () => {
+    jest.mock('/opt/dataRegisterLayer', () => {
       return mockDataRegistryUtils;
     });
 
-    const updateParkName = require('../lambda/updateParkName/index');
+    const updateParkName = require('../index');
     await updateParkName.handler(null, {});
     const res1 = await docClient.get({
       TableName: TABLE_NAME,

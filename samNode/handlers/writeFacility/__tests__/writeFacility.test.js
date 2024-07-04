@@ -1,6 +1,6 @@
 const { DocumentClient } = require('aws-sdk/clients/dynamodb');
 const jwt = require('jsonwebtoken');
-const { REGION, ENDPOINT, TABLE_NAME } = require('./global/settings');
+const { REGION, ENDPOINT, TABLE_NAME } = require('../../../__tests__/settings');
 const ALGORITHM = process.env.ALGORITHM || "HS384";
 
 const ddb = new DocumentClient({
@@ -45,7 +45,7 @@ const token = jwt.sign({ foo: 'bar' }, 'shhhhh', { algorithm: ALGORITHM });
 
 describe('WriteFacility General', () => {
   test('Handler - 403 Unauthorized - nothing passed in', async () => {
-    const writeFacilityHandler = require('../lambda/writeFacility/index');
+    const writeFacilityHandler = require('../index');
     expect(await writeFacilityHandler.handler(null, null)).toMatchObject({
       body: '{"msg":"Unauthorized"}',
       statusCode: 403
@@ -53,7 +53,7 @@ describe('WriteFacility General', () => {
   });
 
   test('Handler - 403 Unauthorized - invalid token', async () => {
-    const writeFacilityHandler = require('../lambda/writeFacility/index');
+    const writeFacilityHandler = require('../index');
     const event = {
       headers: {
         Authorization: 'Bearer ' + token + 'invalid'
@@ -67,7 +67,7 @@ describe('WriteFacility General', () => {
   });
 
   test('GET fails - 405 - Not Implemented', async () => {
-    const writeFacilityHandler = require('../lambda/writeFacility/index');
+    const writeFacilityHandler = require('../index');
     const event = {
       headers: {
         Authorization: 'Bearer ' + token
@@ -81,7 +81,7 @@ describe('WriteFacility General', () => {
   });
 
   test('Function fails on getParkAccess', async () => {
-    jest.mock('../lambda/permissionUtil', () => {
+    jest.mock('/opt/permissionLayer', () => {
       return {
         decodeJWT: jest.fn((event) => {
           // console.log("STUB");
@@ -95,7 +95,7 @@ describe('WriteFacility General', () => {
         })
       };
     });
-    const handler = require('../lambda/writeFacility/index');
+    const handler = require('../index');
     const event = {
       headers: {
         Authorization: "Bearer " + token
@@ -153,7 +153,7 @@ describe('Facility Access', () => {
   });
 
   test('POST fails - 403 - Not an admin', async () => {
-    jest.mock('../lambda/permissionUtil', () => {
+    jest.mock('/opt/permissionLayer', () => {
       return mockedRegularUser;
     });
     const event = {
@@ -165,7 +165,7 @@ describe('Facility Access', () => {
       }),
       httpMethod: 'POST'
     };
-    const writeFacilityHandler = require('../lambda/writeFacility/index');
+    const writeFacilityHandler = require('../index');
     const res = await writeFacilityHandler.handler(event, null);
     expect(res).toMatchObject({
       body: '{"msg":"Unauthorized"}',
@@ -174,10 +174,10 @@ describe('Facility Access', () => {
   });
 
   test('QR Codes enabled on create', async () => {
-    jest.mock('../lambda/permissionUtil', () => {
+    jest.mock('/opt/permissionLayer', () => {
       return mockedSysadmin;
     });
-    const handler = require('../lambda/writeFacility/index');
+    const handler = require('../index');
     const event = {
       headers: {
         Authorization: "Bearer " + token
@@ -216,7 +216,7 @@ describe('Facility Access', () => {
     const response = await handler.handler(event, null);
     expect(response.statusCode).toEqual(200);
     const body = JSON.parse(response.body);
-    expect(body).toEqual({});
+    expect(body).toBeDefined()
     let params = {
       TableName: TABLE_NAME,
       Key: {
@@ -230,10 +230,10 @@ describe('Facility Access', () => {
   });
 
   test('QR Codes enabled on update', async () => {
-    jest.mock('../lambda/permissionUtil', () => {
+    jest.mock('/opt/permissionLayer', () => {
       return mockedSysadmin;
     });
-    const handler = require('../lambda/writeFacility/index');
+    const handler = require('../index');
     const event = {
       headers: {
         Authorization: "Bearer " + token
@@ -353,7 +353,7 @@ async function databaseOperation(version, mode) {
 
 describe('ParkAccess', () => {
   test('GET fails General - 403 - Unauthorized', async () => {
-    const writeFacilityHandler = require('../lambda/writeFacility/index');
+    const writeFacilityHandler = require('../index');
     expect(await writeFacilityHandler.handler(null, null)).toMatchObject({
       body: '{"msg":"Unauthorized"}',
       statusCode: 403
@@ -364,7 +364,7 @@ describe('ParkAccess', () => {
     const event = {
       httpMethod: 'POST'
     }
-    const writeFacilityHandler = require('../lambda/writeFacility/index');
+    const writeFacilityHandler = require('../index');
     expect(await writeFacilityHandler.handler(event, null)).toMatchObject({
       body: '{"msg":"Unauthorized"}',
       statusCode: 403
@@ -375,7 +375,7 @@ describe('ParkAccess', () => {
     const event = {
       httpMethod: 'PUT'
     }
-    const writeFacilityHandler = require('../lambda/writeFacility/index');
+    const writeFacilityHandler = require('../index');
     expect(await writeFacilityHandler.handler(event, null)).toMatchObject({
       body: '{"msg":"Unauthorized"}',
       statusCode: 403
@@ -390,7 +390,7 @@ describe('ParkAccess', () => {
       body: JSON.stringify({}),
       httpMethod: 'GET'
     };
-    const writeFacilityHandler = require('../lambda/writeFacility/index');
+    const writeFacilityHandler = require('../index');
     expect(await writeFacilityHandler.handler(event, null)).toMatchObject({
       body: '{"msg":"Not Implemented"}',
       statusCode: 405

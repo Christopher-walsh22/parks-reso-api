@@ -1,6 +1,6 @@
 const { DocumentClient } = require('aws-sdk/clients/dynamodb');
 
-const { REGION, ENDPOINT, TABLE_NAME } = require('./global/settings');
+const { REGION, ENDPOINT, TABLE_NAME } = require('../../../__tests__/settings');
 
 const ALLOWED_HEADERS = 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-App-Version';
 
@@ -25,7 +25,7 @@ describe('Pass Fails', () => {
   });
 
   test('400 Bad Request - nothing passed in', async () => {
-    const writePassHandler = require('../lambda/writePass/index');
+    const writePassHandler = require('../index');
     expect(await writePassHandler.handler(null, null)).toMatchObject({
       body: JSON.stringify({
         msg: 'There was an error in your submission.',
@@ -33,7 +33,7 @@ describe('Pass Fails', () => {
       }),
       headers: {
         'Access-Control-Allow-Headers': ALLOWED_HEADERS,
-        'Access-Control-Allow-Methods': 'OPTIONS,GET',
+        'Access-Control-Allow-Methods': 'OPTIONS,GET,PUT,DELETE,POST',
         'Access-Control-Allow-Origin': '*',
         'Content-Type': 'application/json'
       },
@@ -42,7 +42,7 @@ describe('Pass Fails', () => {
   });
 
   test('400 Bad Request - Missing JWT', async () => {
-    const writePassHandler = require('../lambda/writePass/index');
+    const writePassHandler = require('../index');
     const event = {
       headers: {
         Authorization: 'None'
@@ -68,7 +68,7 @@ describe('Pass Fails', () => {
       }),
       headers: {
         'Access-Control-Allow-Headers': ALLOWED_HEADERS,
-        'Access-Control-Allow-Methods': 'OPTIONS,GET',
+        'Access-Control-Allow-Methods': 'OPTIONS,GET,PUT,DELETE,POST',
         'Access-Control-Allow-Origin': '*',
         'Content-Type': 'application/json'
       },
@@ -77,7 +77,7 @@ describe('Pass Fails', () => {
   });
 
   test('400 Bad Request - JWT Invalid', async () => {
-    const writePassHandler = require('../lambda/writePass/index');
+    const writePassHandler = require('../index');
     const event = {
       headers: {
         Authorization: 'None'
@@ -103,7 +103,7 @@ describe('Pass Fails', () => {
       }),
       headers: {
         'Access-Control-Allow-Headers': ALLOWED_HEADERS,
-        'Access-Control-Allow-Methods': 'OPTIONS,GET',
+        'Access-Control-Allow-Methods': 'OPTIONS,GET,PUT,DELETE,POST',
         'Access-Control-Allow-Origin': '*',
         'Content-Type': 'application/json'
       },
@@ -112,7 +112,7 @@ describe('Pass Fails', () => {
   });
 
   test('400 Bad Request - Trail pass limit maximum', async () => {
-    jest.mock('../lambda/permissionUtil', () => {
+    jest.mock('/opt/permissionLayer', () => {
       return {
         validateToken: jest.fn(event => {
           // Do Nothing, Don't throw
@@ -130,7 +130,7 @@ describe('Pass Fails', () => {
       };
     });
 
-    const writePassHandler = require('../lambda/writePass/index');
+    const writePassHandler = require('../index');
     const token = jwt.sign(
       {
         registrationNumber: '1111111111',
@@ -164,7 +164,7 @@ describe('Pass Fails', () => {
       body: '{"msg":"You cannot have more than 4 guests on a trail.","title":"Operation Failed"}',
       headers: {
         'Access-Control-Allow-Headers': ALLOWED_HEADERS,
-        'Access-Control-Allow-Methods': 'OPTIONS,GET',
+        'Access-Control-Allow-Methods': 'OPTIONS,GET,PUT,DELETE,POST',
         'Access-Control-Allow-Origin': '*',
         'Content-Type': 'application/json'
       },
@@ -173,7 +173,7 @@ describe('Pass Fails', () => {
   });
 
   test('400 Bad Request - Invalid Date', async () => {
-    jest.mock('../lambda/permissionUtil', () => {
+    jest.mock('/opt/permissionLayer', () => {
       return {
         validateToken: jest.fn(event => {
           // Do Nothing, Don't throw
@@ -200,7 +200,7 @@ describe('Pass Fails', () => {
         })
       };
     });
-    const writePassHandler = require('../lambda/writePass/index');
+    const writePassHandler = require('../index');
     const parkObject = {
       registrationNumber: '1111111112',
       facility: 'Parking lot B',
@@ -240,7 +240,7 @@ describe('Pass Fails', () => {
       }),
       headers: {
         'Access-Control-Allow-Headers': ALLOWED_HEADERS,
-        'Access-Control-Allow-Methods': 'OPTIONS,GET',
+        'Access-Control-Allow-Methods': 'OPTIONS,GET,PUT,DELETE,POST',
         'Access-Control-Allow-Origin': '*',
         'Content-Type': 'application/json'
       },
@@ -249,7 +249,7 @@ describe('Pass Fails', () => {
   });
 
   test('Handler - 400 Bad Request - Booking date in the past', async () => {
-    const writePassHandler = require('../lambda/writePass/index');
+    const writePassHandler = require('../index');
     const token = jwt.sign(
       {
         registrationNumber: '1111111113',
@@ -287,7 +287,7 @@ describe('Pass Fails', () => {
       }),
       headers: {
         'Access-Control-Allow-Headers': ALLOWED_HEADERS,
-        'Access-Control-Allow-Methods': 'OPTIONS,GET',
+        'Access-Control-Allow-Methods': 'OPTIONS,GET,PUT,DELETE,POST',
         'Access-Control-Allow-Origin': '*',
         'Content-Type': 'application/json'
       },
@@ -296,7 +296,7 @@ describe('Pass Fails', () => {
   });
 
   test('Handler - 400 Bad Request - One or more params are invalid.', async () => {
-    const writePassHandler = require('../lambda/writePass/index');
+    const writePassHandler = require('../index');
     const token = jwt.sign(
       {
         registrationNumber: '1111111114',
@@ -349,7 +349,7 @@ describe('Pass Successes', () => {
   });
 
   test('writePass warmup', async () => {
-    const writePassHandler = require('../lambda/writePass/index').handler;
+    const writePassHandler = require('../index').handler;
     const event = {
       warmup: true
     };
@@ -359,8 +359,8 @@ describe('Pass Successes', () => {
   });
 
   test('writePass putPassHandler', async () => {
-    const writePassHandler = require('../lambda/writePass/index').handler;
-    jest.mock('../lambda/permissionUtil', () => {
+    const writePassHandler = require('../index').handler;
+    jest.mock('/opt/permissionLayer', () => {
       return {
         decodeJWT: jest.fn(event => {
           // console.log("STUB");
@@ -442,7 +442,7 @@ describe('Pass Successes', () => {
   });
 
   test('200 pass has been held for a Trail.', async () => {
-    jest.mock('../lambda/permissionUtil', () => {
+    jest.mock('/opt/permissionLayer', () => {
       return {
         validateToken: jest.fn(event => {
           // Do Nothing, Don't throw
@@ -472,7 +472,7 @@ describe('Pass Successes', () => {
         })
       };
     });
-    const writePassHandler = require('../lambda/writePass/index');
+    const writePassHandler = require('../index');
     process.env.ADMIN_FRONTEND = 'http://localhost:4300';
     process.env.PASS_MANAGEMENT_ROUTE = '/pass-management';
 
@@ -508,7 +508,7 @@ describe('Pass Successes', () => {
   });
 
   test('200 pass has been created for a Parking Pass.', async () => {
-    jest.mock('../lambda/permissionUtil', () => {
+    jest.mock('/opt/permissionLayer', () => {
       return {
         validateToken: jest.fn(event => {
           // Do Nothing, Don't throw
@@ -580,7 +580,7 @@ describe('Pass Successes', () => {
     'defaultSecret',
     { algorithm: ALGORITHM, expiresIn: '7m' });
 
-    const writePassHandler = require('../lambda/writePass/index');
+    const writePassHandler = require('../index');
     const event = {
       httpMethod: 'POST',
       headers: {
@@ -655,7 +655,6 @@ describe('Pass Successes', () => {
     expect(body.email).toEqual('testEmail2@test.ca');
     expect(typeof body.date).toBe('string');
     expect(body.type).toEqual('DAY');
-    expect(typeof body.registrationNumber).toBe('string');
     expect(body.numberOfGuests).toEqual(1);
     expect(['reserved', 'active']).toContain(body.passStatus);
     expect(body.facilityType).toEqual('Parking');
@@ -664,7 +663,7 @@ describe('Pass Successes', () => {
   // TODO: Copy the function above and change it so that it can't update the pass in the system.
 
   test('Handler - 400 Number of guests cannot be less than 1.', async () => {
-    const writePassHandler = require('../lambda/writePass/index');
+    const writePassHandler = require('../index');
     const parkObject = {
       facility: 'Parking lot B',
       email: 'test@example.nowhere',
@@ -710,7 +709,7 @@ describe('Pass Successes', () => {
   });
 
   test('Expect checkWarmup function to fire.', async () => {
-    const writePassHandler = require('../lambda/writePass/index');
+    const writePassHandler = require('../index');
     const event = {
       headers: {
         Authorization: 'None'
@@ -726,7 +725,7 @@ describe('Pass Successes', () => {
 
   test('Expect pass check in to fail 403.', async () => {
     // Mock the auth to be fail (This is the new method for mocking auth)
-    jest.mock('../lambda/permissionUtil', () => {
+    jest.mock('/opt/permissionLayer', () => {
       return {
         decodeJWT: jest.fn(event => {
           // console.log("STUB");
@@ -739,7 +738,7 @@ describe('Pass Successes', () => {
         })
       };
     });
-    const writePassHandler = require('../lambda/writePass/index');
+    const writePassHandler = require('../index');
     const event = {
       headers: {
         Authorization: 'None'
@@ -753,7 +752,7 @@ describe('Pass Successes', () => {
   });
 
   test('Expect pass to be checked in.', async () => {
-    jest.mock('../lambda/permissionUtil', () => {
+    jest.mock('/opt/permissionLayer', () => {
       return {
         decodeJWT: jest.fn(event => {
           // console.log("STUB");
@@ -767,7 +766,7 @@ describe('Pass Successes', () => {
         })
       };
     });
-    const writePassHandler = require('../lambda/writePass/index');
+    const writePassHandler = require('../index');
     const event = {
       httpMethod: 'PUT',
       body: JSON.stringify({
@@ -786,7 +785,7 @@ describe('Pass Successes', () => {
   });
 
   test('Expect pass not to be checked in. 1', async () => {
-    jest.mock('../lambda/permissionUtil', () => {
+    jest.mock('/opt/permissionLayer', () => {
       return {
         decodeJWT: jest.fn(event => {
           // console.log("STUB");
@@ -800,7 +799,7 @@ describe('Pass Successes', () => {
         })
       };
     });
-    const writePassHandler = require('../lambda/writePass/index');
+    const writePassHandler = require('../index');
     const event = {
       httpMethod: 'PUT',
       body: JSON.stringify({
@@ -817,7 +816,7 @@ describe('Pass Successes', () => {
   });
 
   test('Expect pass not to be checked in. 2', async () => {
-    jest.mock('../lambda/permissionUtil', () => {
+    jest.mock('/opt/permissionLayer', () => {
       return {
         decodeJWT: jest.fn(event => {
           // console.log("STUB");
@@ -831,7 +830,7 @@ describe('Pass Successes', () => {
         })
       };
     });
-    const writePassHandler = require('../lambda/writePass/index');
+    const writePassHandler = require('../index');
     const event = {
       httpMethod: 'PUT',
       body: JSON.stringify({

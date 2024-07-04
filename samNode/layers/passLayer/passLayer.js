@@ -21,10 +21,8 @@ const DEFAULT_AM_OPENING_HOUR = 7;
 async function sendTemplateSQS(facilityType, personalisation, passObject) {
 
   if(IS_OFFLINE){
-    console.log("OFFLINE no sqs")
     return passObject
   }
-  console.log("In sendTEmplateSQS, PassObject: ", passObject)
   let gcNotifyTemplate;
   // Parking?
   if (facilityType === 'Parking') {
@@ -116,9 +114,7 @@ async function sendSQSMessage(service, payload) {
 
     command = new SendMessageCommand(params);
     logger.info("Sending SQS");
-    console.log("ABOUT TO SEND SQSMESSAGE")
     const data = await sqsClient.send(command)
-    console.log("Response from sqsSend: ", data);
   } catch (e) {
     logger.error(e);
   }

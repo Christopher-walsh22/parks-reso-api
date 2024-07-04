@@ -1,5 +1,5 @@
 const REGION = process.env.AWS_REGION || 'local-env';
-const ENDPOINT = 'http://localhost:8000';
+const ENDPOINT = 'http://172.17.0.2:8000';
 const TABLE_NAME = process.env.TABLE_NAME || 'parksreso-tests';
 const TIMEZONE = 'America/Vancouver';
 

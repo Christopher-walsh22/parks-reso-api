@@ -9,7 +9,7 @@ exports.handler = async (event, context) => {
 
   try {
 
-    if (event.httpMethod === 'OPTIONS') {
+    if (event?.httpMethod === 'OPTIONS') {
       return sendResponse(200, {}, 'Success', null, context);
     }
     

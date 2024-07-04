@@ -94,8 +94,8 @@ async function createFacility(obj) {
 
   logger.debug('putting item:', facilityObj);
 
-  const command = new PutItemCommand(facilityOBj);
-  const res = dynamoClient.send(command);
+  const command = new PutItemCommand(facilityObj);
+  const res = await dynamoClient.send(command);
   logger.info('res:', res.length);
   logger.debug('res:', res);
   return sendResponse(200, res);

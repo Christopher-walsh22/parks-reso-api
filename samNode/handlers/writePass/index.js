@@ -45,7 +45,7 @@ const HOLD_PASS_TIMEOUT = process.env.HOLD_PASS_TIMEOUT || '7m';
 const DEFAULT_AM_OPENING_HOUR = 7;
 
 process.on('unhandledRejection', (reason, promise) => {
-  console.log('Unhandled Rejection at:', promise, 'reason:', reason);
+  logger.info('Unhandled Rejection at:', promise, 'reason:', reason);
   // Handle the error, throw, or exit gracefully as needed
 });
 
@@ -70,9 +70,8 @@ exports.handler = async (event, context) => {
     let newObject = JSON.parse(event.body);
     // Check for update method (check this pass in)
     if (event.httpMethod === 'PUT') {
-      console.log("In the put part of the write pass! ")
       return await putPassHandler(event, permissionObject, newObject);
-    } else if (event.httpMethod === 'OPTIONS') {
+    } else if (event?.httpMethod === 'OPTIONS') {
       return sendResponse(200, {});
     }
 
@@ -84,7 +83,6 @@ exports.handler = async (event, context) => {
       return await handleCommitPass(newObject, permissionObject.isAdmin);
     } else {
       let value = await handleHoldPass(newObject, permissionObject.isAdmin);
-      console.log("End of booking Value: ", value)
       return value
     }
   } catch (err) {
@@ -103,7 +101,6 @@ exports.handler = async (event, context) => {
  * @throws {CustomError} - If there is an error during the commit process.
  */
 async function handleCommitPass(newObject, isAdmin) {
-  console.log("HANDLE COMMIT PASS: ")
   const {
     parkOrcs,
     firstName,
@@ -161,7 +158,6 @@ async function handleCommitPass(newObject, isAdmin) {
       // Check if the booking window is already active
       const currentPSTDateTime = DateTime.now().setZone(TIMEZONE);
       logger.info('Checking pass status based on current time');
-      console.log("Clear to here");
       const passStatus = checkPassStatusBasedOnCurrentTime(currentPSTDateTime,
                                                            bookingPSTDateTime,
                                                            type);
@@ -183,7 +179,6 @@ async function handleCommitPass(newObject, isAdmin) {
       logger.debug(JSON.stringify(pass));
       pass.registrationNumber = decodedToken.sk
       
-      console.log("Pass after conversion: ", pass);
       // delete the audit property before returning back to FE.
       delete pass.audit;
     } catch (error) {
@@ -210,7 +205,6 @@ async function handleCommitPass(newObject, isAdmin) {
   const facilityData = await getFacility(decodedToken.parkOrcs, facilityName, false);
   logger.debug('facilityData', facilityData)
   logger.info('personalization')
-  console.log("facilityData: ", facilityData)
   let personalization = {
     firstName: firstName,
     lastName: lastName,
@@ -225,12 +219,10 @@ async function handleCommitPass(newObject, isAdmin) {
     parksLink: parkData.bcParksLink,
     ...(await getPersonalizationAttachment(parkData.sk, pass.registrationNumber, facilityData.qrcode))
   };
-  console.log("Personalization: ", personalization)
   // Send to GC Notify
   try {
     logger.info('Posting to GC Notify');
     await sendTemplateSQS(facilityData.type, personalization, pass);
-    console.log("after Awaiting send Template SQS ")
   } catch (err) {
     logger.info(
       `Sending SQS msg error, return 200 anyway. Registration number: ${JSON.stringify(
@@ -240,8 +232,6 @@ async function handleCommitPass(newObject, isAdmin) {
     logger.error(err.response?.data || err);
     return sendResponse(200, pass);
   }
-  console.log("About to return, Pass details: ", pass)
-  console.log("No error after sending to sqs GCNotify, pass registrationNumber: ", pass.registrationNumber)
   return sendResponse(200, pass);
   // TODO: Remove JWT from hold pass area in database.
 }
@@ -352,8 +342,6 @@ async function handleHoldPass(newObject, isAdmin) {
 
     logger.info('Creating pass object');
     const registrationNumber = generateRegistrationNumber(10);
-    console.log("regy num outside gen regynum", registrationNumber)
-    console.log("after generateRegistration number: ")
     // // Create the base pass object
     let passObject = createPassObject(
       parkData,
@@ -371,7 +359,6 @@ async function handleHoldPass(newObject, isAdmin) {
       facilityData,
       currentPSTDateTime
     );
-    console.log("After createPassObject")
     // Here, we must create/update a reservation object
     // https://github.com/bcgov/parks-reso-api/wiki/Models
 
@@ -389,9 +376,7 @@ async function handleHoldPass(newObject, isAdmin) {
     logger.info('Creating reservations object');
     // We need to ensure that the reservations object exists.
     // Attempt to create reservations object. If it fails, so what...
-    console.log("ABOUT TO AWAIT CREATE NEW RESERVATION OBJ")
     await createNewReservationsObj(facilityData, reservationsObjectPK, bookingPSTShortDate);
-    console.log("did the create")
     logger.info('numberOfGuests:', numberOfGuests);
 
     // // Perform a transaction where we decrement the available passes and create the pass
@@ -412,10 +397,7 @@ async function handleHoldPass(newObject, isAdmin) {
     logger.debug(transactionObj);
 
     // Perform the transaction, retrying if necessary
-    console.log("About to write with retries");
-    console.log("transactionOBJ: ", transactionObj)
     await transactWriteWithRetries(transactionObj); // TODO: Set a retry limit if 3 isn't enough.
-    console.log("Past write transaction with retry")
     logger.info('Transaction complete');
 
     delete passObject.Item['audit'];
@@ -428,15 +410,12 @@ async function handleHoldPass(newObject, isAdmin) {
 
     let expirationTime = getExpiryTime(holdPassJwt);
     // Store the jwt, as well as the registration number, and the expiry time in DynamoDB
-    console.log("About to store the hold pass")
     await storeHoldPassJwt(holdPassJwt, expirationTime);
 
     //Send message to expiration queue
     try {
       logger.info('Posting to expirationQueue');
-      console.log("Enter the sendExpirationSQS")
       await sendExpirationSQS();  
-      console.log("exiting the sendExpirationSQS")
     } catch (err) {
       logger.info(`Error with the ExpirationSQS`);
       logger.error(err.response?.data || err);
@@ -459,11 +438,9 @@ async function handleHoldPass(newObject, isAdmin) {
  */
 async function storeHoldPassJwt(holdPassJwt, expirationTime) {
   try {
-    console.log("Am I here? Storeholdpass")
     let retries = 0;
     let success = false;
     while (retries < 3 && !success) {
-      console.log("In while, store the object")
       try {
         await storeObject({
           'pk': 'jwt',
@@ -532,24 +509,19 @@ async function transactWriteWithRetries(transactionObj, maxRetries = 3) {
                 logger.info(message);
                 break;
             }
-            console.log("Throwing error on line 539")
             throw new CustomError(message, 400);
           }
           if (retryCount === maxRetries) {
-            console.log("Throw error on line 543")
             logger.info('Retry limit reached');
             throw new CustomError(message, 400);
           }
-          console.log("Incrementing retry count")
           retryCount++;
         } else {
-          console.log("Throwing on 550")
           throw new CustomError(error.message, 400);
         }
       }
     } while (retryCount < maxRetries);
   }catch(error){
-    console.log(error)
   }
 };
 
@@ -702,7 +674,6 @@ function checkForHardCodeAdjustment(newObject) {
  * @returns {Object} - The transaction object.
  */
 function generateTrasactionObject(parkData, facilityName, reservationsObjectPK, bookingPSTShortDate, type, numberOfGuests, passObject = undefined) {
-  console.log("Are we here now?")
   let TransactItems = [
     {
       ConditionCheck: {
@@ -745,7 +716,6 @@ function generateTrasactionObject(parkData, facilityName, reservationsObjectPK, 
       Put: passObject
     });
   }
-  console.log("Returning transact Items")
   return {
     TransactItems
   };

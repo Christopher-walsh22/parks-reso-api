@@ -2,7 +2,7 @@ const AWS = require('aws-sdk');
 const { DocumentClient } = require('aws-sdk/clients/dynamodb');
 const jwt = require('jsonwebtoken');
 
-const { REGION, ENDPOINT, TABLE_NAME } = require('./global/settings');
+const { REGION, ENDPOINT, TABLE_NAME } = require('../../../__tests__/settings');
 
 const pass1 = {
   pk: 'pass::0016',
@@ -53,12 +53,12 @@ describe('Read Pass', () => {
   });
 
   test('ReadPass Handler - 400 Bad Request - nothing passed in', async () => {
-    const handler = require('../lambda/readPass/index');
+    const handler = require('../index');
     expect(await (await handler.handler(null, null)).statusCode).toEqual(400);
   });
 
   test('ReadPass Handler - 400 Bad Request - JWT Invalid', async () => {
-    jest.mock('../lambda/permissionUtil', () => {
+    jest.mock('/opt/permissionLayer', () => {
       return {
         decodeJWT: jest.fn((event) => {
           // console.log("STUB");
@@ -71,7 +71,7 @@ describe('Read Pass', () => {
         })
       }
     });
-    const handler = require('../lambda/readPass/index');
+    const handler = require('../index');
     const event = {
       headers: {
         Authorization: 'None'
@@ -90,7 +90,7 @@ describe('Read Pass', () => {
   });
 
   test('ReadPass Handler - 400 Bad Request - JWT Invalid', async () => {
-    const handler = require('../lambda/readPass/index');
+    const handler = require('../index');
     const event = {
       headers: {
         Authorization: 'None'
@@ -108,7 +108,7 @@ describe('Read Pass', () => {
   });
 
   test('ReadPass - 200 - No pass found', async () => {
-    jest.mock('../lambda/permissionUtil', () => {
+    jest.mock('/opt/permissionLayer', () => {
       return {
         decodeJWT: jest.fn((event) => {
           // console.log("STUB");
@@ -122,7 +122,7 @@ describe('Read Pass', () => {
         })
       }
     });
-    const handler = require('../lambda/readPass/index');
+    const handler = require('../index');
     const event = {
       headers: {
         Authorization: "Bearer " + token
@@ -131,7 +131,7 @@ describe('Read Pass', () => {
         manualLookup: true,
         park: '0016',
         date: '2012-01-01',
-        facilityName: 'Parkingx lot A',
+        facilityName: 'Parking Lot XYZ non-existent',
         registrationNumber: '123456789',
         email: 'noreply@gov.bc.ca',
         firstName: 'First',
@@ -145,7 +145,7 @@ describe('Read Pass', () => {
   });
 
   test('ReadPass - 400 - Invalid Request', async () => {
-    jest.mock('../lambda/permissionUtil', () => {
+    jest.mock('/opt/permissionLayer', () => {
       return {
         decodeJWT: jest.fn((event) => {
           // console.log("STUB");
@@ -159,20 +159,13 @@ describe('Read Pass', () => {
         })
       }
     });
-    const handler = require('../lambda/readPass/index');
+    const handler = require('../index');
     const event = {
       headers: {
         Authorization: "Bearer " + token
       },
       queryStringParameters: {
-        manualLookup: true,
-        park: '0016',
-        date: '2012-01-01',
-        facilityName: 1,
-        registrationNumber: '123456789',
-        email: 'noreply@gov.bc.ca',
-        firstName: 'First',
-        lastName: 'Last'
+        fail: null
       }
     };
     const response = await handler.handler(event, null);
@@ -184,7 +177,7 @@ describe('Read Pass', () => {
   });
 
   test('ReadPass Handler - 200', async () => {
-    jest.mock('../lambda/permissionUtil', () => {
+    jest.mock('/opt/permissionLayer', () => {
       return {
         decodeJWT: jest.fn((event) => {
           // console.log("STUB");
@@ -198,7 +191,7 @@ describe('Read Pass', () => {
         })
       }
     });
-    const handler = require('../lambda/readPass/index');
+    const handler = require('../index');
     const event = {
       headers: {
         Authorization: "Bearer " + token

@@ -5,7 +5,7 @@ const INVALID_TOKEN = {
         decoded: false,
         data: null
       };
-const { runQuery, TABLE_NAME, dynamoClient, logger, DeleteItemCommand } = require('/opt/baseLayer');
+const { runQuery, TABLE_NAME, dynamoClient, logger, CustomError, DeleteItemCommand } = require('/opt/baseLayer');
 const jwt = require('jsonwebtoken');
 const jwksClient = require('jwks-rsa');
 const axios = require('axios');
@@ -83,7 +83,6 @@ exports.verifyHoldToken = function (token, secret) {
 };
 
 exports.deleteHoldToken = async function (token) {
-  console.log("Deleteing this token: ", token)
   try {
     const params = { 
       TableName: TABLE_NAME,
@@ -93,9 +92,7 @@ exports.deleteHoldToken = async function (token) {
       }
     }
     const command = new DeleteItemCommand(params)
-    console.log(command)
     const data = await dynamoClient.send(command)
-    console.log("Data from delete: ", data)
   } catch (error) {
     // Handle the error here
     logger.error('Error deleting hold token: ', error);

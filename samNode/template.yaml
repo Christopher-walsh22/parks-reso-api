@@ -527,6 +527,12 @@ Resources:
             Path: /metrics
             Method: GET
             RestApiId: !Ref ApiDeployment
+        readMetricsOptions:
+          Type: Api
+          Properties:
+            Path: /metrics
+            Method: OPTIONS
+            RestApiId: !Ref ApiDeployment
 
   OptionsMetricsFunction:
     Type: AWS::Serverless::Function
@@ -1167,7 +1173,7 @@ Resources:
       Runtime: nodejs18.x
       Environment:
         Variables:
-          LOG_LEVEL: info
+          LOG_LEVEL: !Ref LogLevel
           SSO_ISSUER: !Ref SSOIssuerUrl
           SSO_JWKSURI: !Ref SSOJWKSUri
           CF_SECRET_KEY: !Ref CFSecretKey

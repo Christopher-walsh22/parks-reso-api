@@ -194,7 +194,6 @@ async function getPark(sk, authenticated = false) {
   
 
     if (!authenticated && !park.visible) {
-      console.log("Park invisible and !authenticated");
       return {}; // Return empty object if park is not visible and user is not authenticated
     }
     
@@ -225,7 +224,6 @@ async function getParks() {
 // get a single facility by park name & facility sk. 
 // if not authenticated, invisible facilities will not be returned.
 async function getFacility(parkSk, sk, authenticated = false) {
-  console.log("Getting facility");
   const facility = await getOne(`facility::${parkSk}`, sk);
   if (!authenticated && !facility.visible.BOOL) {
     return {};
@@ -315,7 +313,6 @@ async function storeObject(object, tableName = TABLE_NAME) {
     };
     logger.debug('Params for DynamoDB:', params);
     try {
-      console.log("In Store object try for putitem command")
       const command = new PutItemCommand(params)
       logger.debug('PutItem COmmand:', command);
       res = await dynamoClient.send(command) 
@@ -382,7 +379,6 @@ async function checkPassExists(facilityName, email, type, bookingPSTShortDate) {
     logger.info('Running existingPassCheckObject'); 
     logger.debug(JSON.stringify(existingPassCheckObject));
     existingItems = await dynamoClient.send(command);
-    console.log("Existing Items: ", existingItems)
   } catch (error) {
     logger.info('Error while running query for existingPassCheckObject');
     logger.error(error);
@@ -456,13 +452,10 @@ async function convertPassToReserved(decodedToken, passStatus, firstName, lastNa
   };
   const command = new UpdateItemCommand(updateParams);
   const res = await dynamoClient.send(command);
-  console.log("Convert Pass to Reserved Response: ", res)
   if (Object.keys(res.Attributes).length === 0) {
     logger.info(`Set status of ${res.Attributes?.type?.S} pass ${res.Attributes?.sk?.S} to ${passStatus}`);
     throw new CustomError('Operation Failed', 400);
   }
-  console.log("BASE LAYER CREATING PASS FROM REServerd: ", res)
-  console.log("Attributes", res.Attributes)
   return unmarshall(res.Attributes);
 }
 
@@ -501,8 +494,6 @@ async function getAllStoredJWTs(expired = false) { //optional if expired or all 
     let data;
     let command = new QueryCommand(params)
     do {
-      console.log("Command for get all JWT")
-      console.log('Querying DynamoDB...');
       data = await dynamoClient.send(command);
       for(const item of data.Items) {
         items.push(unmarshall(item));
@@ -680,9 +671,10 @@ module.exports = {
   expressionBuilder,
   visibleFilter,
   restoreAvailablePass,
-  logger,
+  getAllStoredJWTs,
   sendResponse,
   checkWarmup,
+  logger,
   CustomError,
   
   // AWS Services

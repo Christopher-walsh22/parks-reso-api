@@ -1,4 +1,4 @@
-const { getPersonalizationAttachment } = require('../lambda/passUtils');
+const { getPersonalizationAttachment } = require('../passLayer/passLayer');
 
 describe('Pass Utility Tests', () => {
   const OLD_ENV = process.env;

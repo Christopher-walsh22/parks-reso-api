@@ -3,8 +3,8 @@ const { DateTime } = require('luxon');
 const AWS = require('aws-sdk');
 const { DocumentClient } = require('aws-sdk/clients/dynamodb');
 
-const checkActivation = require('../lambda/checkActivation/index');
-const { REGION, ENDPOINT, TABLE_NAME } = require('./global/settings');
+const checkActivation = require('../index');
+const { REGION, ENDPOINT, TABLE_NAME } = require('../../../__tests__/settings');
 
 let dynamoDb;
 let docClient;

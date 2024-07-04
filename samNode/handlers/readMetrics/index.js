@@ -1,5 +1,6 @@
 const { DateTime } = require('luxon');
 const { METRICS_TABLE_NAME, runQuery, logger, sendResponse } = require("/opt/baseLayer");
+const { decodeJWT, resolvePermissions } = require("/opt/permissionLayer");
 
 exports.handler = async (event, context) => {
   if (!event || !event.headers) {
@@ -7,7 +8,7 @@ exports.handler = async (event, context) => {
     return sendResponse(403, { msg: 'Unauthorized' }, context);
   }
 
-  if (event.httpMethod === 'OPTIONS') {
+  if (event?.httpMethod === 'OPTIONS') {
     return sendResponse(200, {}, 'Success', null, context);
   }
   logger.debug('Fetching metrics for selected date range');
@@ -15,8 +16,8 @@ exports.handler = async (event, context) => {
   // 1. Get the relevant metrics information from the queryparameters
 
   try {
-    const permissionObject = event.requestContext.authorizer;
-    permissionObject.roles = JSON.parse(permissionObject.roles);
+    const token = await decodeJWT(event);
+    const permissionObject = resolvePermissions(token);
 
     if (permissionObject.isAuthenticated !== true) {
       logger.info('Unauthorized');

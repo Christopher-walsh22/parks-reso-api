@@ -13,14 +13,14 @@ describe('SQS Processor Tests', () => {
   });
 
   test('returns {} when noting passed in', async () => {
-    const handler = require('../lambda/sqsProcessor/index');
+    const handler = require('../index');
 
     const res = await handler.handler(null);
     expect(res).toEqual({});
   });
 
   test('returns {} when event passed in, but records empty', async () => {
-    const handler = require('../lambda/sqsProcessor/index');
+    const handler = require('../index');
 
     const res = await handler.handler({});
     expect(res).toEqual({});
@@ -31,7 +31,7 @@ describe('SQS Processor Tests', () => {
     jest.mock("axios");
     axios.post.mockImplementation(() => Promise.resolve({ data: {} }));
 
-    const handler = require('../lambda/sqsProcessor/index');
+    const handler = require('../index');
 
     const res = await handler.handler({
       Records: [{
@@ -57,7 +57,7 @@ describe('SQS Processor Tests', () => {
   test('throws an error when gcNotify fails', async () => {
     const axios = require('axios');
     jest.spyOn(axios, 'post').mockRejectedValue(new Error('error'));
-    const handler = require('../lambda/sqsProcessor/index');
+    const handler = require('../index');
 
     await handler.handler({
       Records: [{
