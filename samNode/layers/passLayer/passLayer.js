@@ -1,5 +1,15 @@
 const qrcode = require('qrcode');
-const { runQuery, TABLE_NAME, TIMEZONE, getOne, DEFAULT_BOOKING_DAYS_AHEAD, DEFAULT_PM_OPENING_HOUR, logger, CustomError, unmarshall, sqsClient, SendMessageCommand } = require('/opt/baseLayer');
+const { runQuery,
+  TABLE_NAME,
+  TIMEZONE,
+  getOne,
+  DEFAULT_BOOKING_DAYS_AHEAD,
+  DEFAULT_PM_OPENING_HOUR,
+  logger,
+  CustomError,
+  unmarshall,
+  sqsClient,
+  SendMessageCommand } = require('/opt/baseLayer');
 const { DateTime } = require('luxon');
 const IS_OFFLINE = require('/opt/baseLayer');
 

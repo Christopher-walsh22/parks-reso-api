@@ -1,9 +1,9 @@
 {
-    "name": "ExportAllPassInvokeFunction",
-    "version": "1.0.0",
-    "author": "Digitalspace <contact@digitalspace.ca>",
-    "dependencies": {
-        "@aws-sdk/client-s3": "^3.44.0",
-        "csvjson": "^5.1.0"
-        }
-  }
+	"name": "exportAllPassInvokeFunction",
+	"version": "1.0.0",
+	"author": "Digitalspace <contact@digitalspace.ca>",
+  "license": "MIT",
+	"dependencies": {
+		"csvjson": "^5.1.0"
+	}
+}

@@ -1,8 +1,14 @@
-const { dynamoClient, PutItemCommand, TABLE_NAME, sendResponse, logger, marshall } = require('/opt/baseLayer');
+const { dynamoClient,
+  PutItemCommand,
+  TABLE_NAME,
+  sendResponse,
+  logger,
+  marshall } = require('/opt/baseLayer');
+const { decodeJWT, resolvePermissions } = require('/opt/permissionLayer');
 
 exports.handler = async (event, context) => {
-  const permissionObject = event.requestContext.authorizer;
-  permissionObject.roles = JSON.parse(permissionObject.roles);
+  const token = await decodeJWT(event);
+  const permissionObject = resolvePermissions(token);
 
   if (permissionObject.isAdmin !== true) {
     return sendResponse(403, { msg: 'Unauthorized' }, context);

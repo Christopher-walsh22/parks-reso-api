@@ -1,4 +1,4 @@
-const {restoreAvailablePass, logger, getAllStoredJWTs} = require('/opt/baseLayer');
+const { restoreAvailablePass, logger, getAllStoredJWTs } = require('/opt/baseLayer');
 const jwt = require('jsonwebtoken');
 
 /**

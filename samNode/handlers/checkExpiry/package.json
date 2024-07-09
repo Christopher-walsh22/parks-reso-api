@@ -1,9 +1,9 @@
 {
-    "name": "checkExpiryFunction",
-    "version": "1.0.0",
-    "author": "Digitalspace <contact@digitalspace.ca>",
-    "dependencies": {
-        "esbuild": "^0.14.14",
-        "luxon": "3.4.4"
-    }
-  }
+	"name": "checkExpiryFunction",
+	"version": "1.0.0",
+	"author": "Digitalspace <contact@digitalspace.ca>",
+  "license": "MIT",
+	"dependencies": {
+		"luxon": "3.4.4"
+	}
+}

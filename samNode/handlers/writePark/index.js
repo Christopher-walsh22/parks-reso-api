@@ -1,4 +1,12 @@
-const { dynamoClient, TABLE_NAME, sendResponse, logger, unmarshall, marshall, UpdateItemCommand, PutItemCommand } = require('/opt/baseLayer');
+const { http } = require('winston');
+const { dynamoClient,
+  TABLE_NAME,
+  sendResponse,
+  logger,
+  unmarshall,
+  marshall,
+  UpdateItemCommand,
+  PutItemCommand } = require('/opt/baseLayer');
 const { decodeJWT, resolvePermissions, getParkAccess } = require('/opt/permissionLayer');
 
 
@@ -195,7 +203,7 @@ async function updateItem(obj, context) {
   if (obj?.park?.specialClosure) {
     updateParams.ExpressionAttributeValues = {
       ...updateParams.ExpressionAttributeValues,
-      ':specialClosure': {S: obj.park.specialClosure}
+      ':specialClosure': { BOOL: obj.park.specialClosure}
     };
   } else {
     updateParams.ExpressionAttributeValues = {
@@ -220,7 +228,6 @@ async function updateItem(obj, context) {
 
   // Trim the last , from the updateExpression
   updateParams.UpdateExpression = updateParams.UpdateExpression.slice(0, -1);
-
   logger.debug('Updating item:', updateParams);
   const command = new UpdateItemCommand(updateParams);
   const { Attributes } = await dynamoClient.send(command);

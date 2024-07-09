@@ -1,5 +1,14 @@
 
-const { dynamoClient, TABLE_NAME, TIMEZONE, sendResponse, logger, marshall, unmarshall, DateTime, PutItemCommand, UpdateItemCommand } = require('/opt/baseLayer');
+const { dynamoClient,
+  TABLE_NAME,
+  TIMEZONE,
+  sendResponse,
+  logger,
+  marshall,
+  unmarshall,
+  DateTime,
+  PutItemCommand,
+  UpdateItemCommand } = require('/opt/baseLayer');
 const { decodeJWT, resolvePermissions, getParkAccess } = require('/opt/permissionLayer');
 const { processReservationObjects, getFutureReservationObjects, createNewReservationsObj } = require('/opt/reservationLayer');
 const { unlockFacility, setFacilityLock } = require('/opt/facilityLayer');

@@ -54,7 +54,6 @@ exports.handler = async (event, context) => {
       logger.info('**NOT AUTHENTICATED, PUBLIC**');
       let parkObj = await getPark(park);
       if (!parkObj) {
-        console.log("No park found gunna 404 it")
         logger.info("Park not found");
         return sendResponse(404, { msg: 'Park not found' }, context);
       }
@@ -113,13 +112,10 @@ exports.handler = async (event, context) => {
       queryObj.ExpressionAttributeValues[':endDate'] = { S: bookingWindow[bookingWindow.length - 1] };
       queryObj.KeyConditionExpression += ' AND sk BETWEEN :startDate AND :endDate';
     }
-    console.log("Gunna run the query")
     let reservations = await runQuery(queryObj);
-    console.log("Got it")
 
     // Format/filter public results.
     if (!permissionObject.isAuthenticated) {
-      console.log("In the permission object!Auth")
       if(reservations){
         reservations = formatPublicReservationObject(reservations, facilityObj, bookingWindow);
       }
@@ -168,9 +164,7 @@ async function getOverbookedData(date, facility) {
     KeyConditionExpression: 'shortPassDate =:shortPassDate AND facilityName =:facilityName',
     FilterExpression: 'isOverbooked = :isOverbooked'
   };
-  console.log("IN THE GET OVERBOOKED DATA FUNCITON:::::")
   const passData = await runQuery(queryObj);
-  console.log("PAass data passed: ", passData)
   let overbookedObj = {
     AM: 0,
     PM: 0,

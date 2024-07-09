@@ -1,8 +1,7 @@
 const { sendResponse, logger } = require('/opt/baseLayer');
-const { getParkAccess } = require('/opt/permissionLayer');
+const { getParkAccess, decodeJWT, resolvePermissions } = require('/opt/permissionLayer');
 const { setFacilityLock, unlockFacility } = require('/opt/facilityLayer');
-const { createNewReservationsObj } = require('/opt/reservationLayer');
-const { processReservationObjects, getReservationObject } = require('/opt/reservationLayer');
+const { createNewReservationsObj, processReservationObjects, getReservationObject } = require('/opt/reservationLayer');
 const { DateTime } = require('luxon');
 
 // Example Payload:
@@ -28,8 +27,8 @@ exports.handler = async (event, context) => {
     return sendResponse(405, { msg: 'Not Implemented' }, context);
   }
 
-  const permissionObject = event.requestContext.authorizer;
-  permissionObject.roles = JSON.parse(permissionObject.roles);
+  const token = await decodeJWT(event);
+  const permissionObject = resolvePermissions(token);
 
   if (permissionObject.isAuthenticated !== true) {
     logger.info('Unauthorized');

@@ -1,6 +1,6 @@
 {
   "name": "dup-api-base-layer",
-  "version": "1.0.0",
+    "version": "1.0.0",
   "author": "Digitalspace <contact@digitalspace.ca>",
   "license": "MIT",
   "dependencies": {
@@ -10,6 +10,7 @@
     "@aws-sdk/client-s3": "^3.54.0",
     "@aws-sdk/client-sqs": "^3.54.0",
     "@aws-sdk/client-lambda": "^3.54.0",
-    "@aws-sdk/util-dynamodb": "^3.54.0"
+    "@aws-sdk/util-dynamodb": "^3.54.0",
+    "@aws-sdk/s3-request-presigner": "^3.54.0"
   }
 }

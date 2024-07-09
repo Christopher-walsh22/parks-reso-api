@@ -384,7 +384,7 @@ async function handleHoldPass(newObject, isAdmin) {
     // // This is to prevent a race condition related to available pass tallies.
     // passObject.ReturnValuesOnConditionCheckFailure = 'ALL_OLD';
     logger.info('Creating transaction object');
-    const transactionObj = generateTrasactionObject(parkData,
+    const transactionObj = generateTransactionObject(parkData,
       facilityName,
       reservationsObjectPK,
       bookingPSTShortDate,
@@ -673,7 +673,7 @@ function checkForHardCodeAdjustment(newObject) {
  * @param {Object} [passObject=undefined] - The pass object (optional).
  * @returns {Object} - The transaction object.
  */
-function generateTrasactionObject(parkData, facilityName, reservationsObjectPK, bookingPSTShortDate, type, numberOfGuests, passObject = undefined) {
+function generateTransactionObject(parkData, facilityName, reservationsObjectPK, bookingPSTShortDate, type, numberOfGuests, passObject = undefined) {
   let TransactItems = [
     {
       ConditionCheck: {

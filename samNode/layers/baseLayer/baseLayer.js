@@ -1,15 +1,26 @@
 // dynamoUtils Vars
 
-const { ScanCommand, QueryCommand, transactWriteItems, TransactWriteItemsCommand, TransactWriteCommand, DeleteItemCommand, PutItemCommand, DynamoDBClient, UpdateItemCommand, GetItemCommand } = require('@aws-sdk/client-dynamodb');
+const { ScanCommand,
+  QueryCommand,
+  transactWriteItems,
+  TransactWriteItemsCommand,
+  TransactWriteCommand,
+  DynamoDB,
+  DeleteItemCommand,
+  PutItemCommand,
+  DynamoDBClient,
+  UpdateItemCommand,
+  GetItemCommand } = require('@aws-sdk/client-dynamodb');
 const { Lambda } = require('@aws-sdk/client-lambda');
-const { S3 } = require('@aws-sdk/client-s3');
+const { S3Client, GetObjectCommand, S3 } = require('@aws-sdk/client-s3');
+const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 const { SQSClient, SendMessageCommand  } = require('@aws-sdk/client-sqs');
 const { DateTime } = require('luxon');
 const { marshall, unmarshall } = require('@aws-sdk/util-dynamodb');
 
-const TABLE_NAME = process.env.TABLE_NAME || 'parksreso';
-const META_TABLE_NAME = process.env.META_TABLE_NAME || 'parksreso-meta';
-const METRICS_TABLE_NAME = process.env.METRICS_TABLE_NAME || 'parksreso-metrics';
+const TABLE_NAME = process.env.TABLE_NAME || 'ParksDUP';
+const META_TABLE_NAME = process.env.META_TABLE_NAME || 'ParksMetaDUP';
+const METRICS_TABLE_NAME = process.env.METRICS_TABLE_NAME || 'ParksMetricsDUP';
 const AWSREGION = process.env.AWSREGION || "ca-central-1";
 const DYNAMODB_ENDPOINT_URL = process.env.DYNAMODB_ENDPOINT_URL || "http://172.17.0.2:8000"
 const options = {
@@ -37,9 +48,8 @@ const PASS_TYPE_EXPIRY_HOURS = {
   DAY: 0
 };
 const DEFAULT_BOOKING_DAYS_AHEAD = 3;
-// const dynamodb = new DynamoDB(options);
+const dynamodb = new DynamoDB(options);
 const dynamoClient = new DynamoDBClient(options)
-// exports.dynamodb = new AWS.DynamoDB();
 
 // loggerUtil vars
 const { createLogger, format, transports } = require('winston');
@@ -117,21 +127,25 @@ async function runQuery(query, paginated = false) {
   let data = [];
   let pageData = [];
   let page = 0;
-  let command = new QueryCommand(query)
+  const command = new QueryCommand(query);
   do {
     page++;
     if (pageData?.LastEvaluatedKey) {
-      command.input.ExclusiveStartKey = pageData.LastEvaluatedKey;
-    };
+      query.ExclusiveStartKey = pageData.LastEvaluatedKey;
+    }
     pageData = await dynamoClient.send(command);
-    data = data.concat(pageData.Items.map(item => {
-      return unmarshall(item);
-    }));
+    data = data.concat(
+      pageData.Items.map((item) => {
+        return unmarshall(item);
+      })
+    );
     if (page < 2) {
       logger.debug(`Page ${page} data:`, data);
     } else {
-      logger.info(`Page ${page} contains ${pageData.Items.length} additional query results...`);
-    };
+      logger.debug(
+        `Page ${page} contains ${pageData.Items.length} additional query results...`
+      );
+    }
   } while (pageData?.LastEvaluatedKey && !paginated);
 
   logger.info(`Query result pages: ${page}, total returned items: ${data.length}`);
@@ -205,7 +219,6 @@ async function getPark(sk, authenticated = false) {
     return unmarshalledPark;
 
   } catch (error) {
-    console.error("Error fetching or processing park:", error);
     throw error; // Handle or propagate the error as needed
   }
 }
@@ -633,7 +646,8 @@ const logger = createLogger({
 // const marshall = AWS.DynamoDB.Converter.marshall
 // const AWSinput = AWS.DynamoDB.Converter.input
 const sqsClient = new SQSClient(options)
-const s3 = new S3();
+const s3Client = new S3Client(options);
+const s3 = new S3(options);
 const lambda = new Lambda(options);
 const invoke = lambda.invoke
 module.exports = {
@@ -679,12 +693,14 @@ module.exports = {
   
   // AWS Services
   dynamoClient,
-  //dynamodb,
   sqsClient, // Assuming sqs is imported elsewhere
   SendMessageCommand,
   unmarshall,
   marshall,
   s3,
+  s3Client,
+  getSignedUrl,
+  GetObjectCommand,
   lambda,
   invoke,
   transactWriteItems,

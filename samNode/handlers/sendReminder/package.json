@@ -1,5 +1,5 @@
 {
-	"name": "writeMetricsFunction",
+	"name": "sendReminderFunction",
 	"version": "1.0.0",
 	"author": "Digitalspace <contact@digitalspace.ca>",
   "license": "MIT",

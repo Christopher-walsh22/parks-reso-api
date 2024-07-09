@@ -1,6 +1,15 @@
 const AWS = require('/opt/baseLayer');
 const { DateTime } = require("luxon");
-const { METRICS_TABLE_NAME, TABLE_NAME, TIMEZONE, runQuery, dynamoClient, getOne, logger, marshall, unmarshall, TransactWriteItemsCommand } = require("/opt/baseLayer");
+const { METRICS_TABLE_NAME,
+  TABLE_NAME,
+  TIMEZONE,
+  runQuery,
+  dynamoClient,
+  getOne,
+  logger,
+  marshall,
+  unmarshall,
+  TransactWriteItemsCommand } = require("/opt/baseLayer");
 const { checkPassesRequired } = require("/opt/reservationLayer");
 
 const MAX_TRANSACTION_SIZE = 25;

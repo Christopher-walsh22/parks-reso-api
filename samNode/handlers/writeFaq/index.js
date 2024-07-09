@@ -1,4 +1,9 @@
-const { dynamoClient, TABLE_NAME, sendResponse, logger, unmarshall, UpdateItemCommand } = require('/opt/baseLayer');
+const { dynamoClient,
+  TABLE_NAME,
+  sendResponse,
+  logger,
+  unmarshall,
+  UpdateItemCommand } = require('/opt/baseLayer');
 const { decodeJWT, resolvePermissions } = require('/opt/permissionLayer');
 
 exports.handler = async (event, context) => {

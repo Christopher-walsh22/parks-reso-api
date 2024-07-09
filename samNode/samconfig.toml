@@ -4,7 +4,7 @@ version = 0.1
 
 [default]
 [default.global.parameters]
-stack_name = "samNode"
+stack_name = "dup-api"
 
 [default.build.parameters]
 cached = false

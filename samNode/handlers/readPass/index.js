@@ -1,10 +1,10 @@
 
 const jwt = require('jsonwebtoken');
 const axios = require('axios');
+const { DateTime } = require('luxon');
 
 const { runQuery, TABLE_NAME, expressionBuilder, sendResponse, logger, checkWarmup } = require('/opt/baseLayer');
 const { decodeJWT, resolvePermissions, getParkAccess } = require('/opt/permissionLayer');
-const { DateTime } = require('luxon');
 const ALGORITHM = process.env.ALGORITHM || "HS384";
 
 exports.handler = async (event, context) => {

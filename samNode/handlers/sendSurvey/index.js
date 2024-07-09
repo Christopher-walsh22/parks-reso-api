@@ -1,5 +1,12 @@
-const AWS = require('/opt/baseLayer');
-const { runQuery, TABLE_NAME, META_TABLE_NAME, TIMEZONE, dynamoClient, PutItemCommand, logger, sendResponse, marshall } = require('/opt/baseLayer');
+const { runQuery,
+  TABLE_NAME,
+  META_TABLE_NAME,
+  TIMEZONE,
+  dynamoClient,
+  PutItemCommand,
+  logger,
+  sendResponse,
+  marshall } = require('/opt/baseLayer');
 const { gcnSend } = require('/opt/gcNotifyLayer');
 const { webhookPost } = require('/opt/webhookLayer');
 const { DateTime } = require('luxon');
@@ -193,7 +200,7 @@ async function postBulkSummary(data, jobError, passArray) {
 
     const command = new PutItemCommand(postObj);
     const res = dynamoClient.send(command);
-    console.log("res from PostBulkSummary: ", res)
+    logger.debug('PutItem response:', res);
     logger.debug('Posted bulk feedbackSurveySummary to database:', postItem);
     return postItem;
   } catch (err) {

@@ -1,7 +1,13 @@
-const { S3 } = require('@aws-sdk/client-s3');
 const csvjson = require('csvjson');
-const { runQuery, sendResponse, logger } = require('/opt/baseLayer');
+const { runQuery, sendResponse, logger, s3, s3Client, getSignedUrl, GetObjectCommand } = require('/opt/baseLayer');
 const { decodeJWT, resolvePermissions } = require('/opt/permissionLayer');
+
+const bucket = process.env.BUCKET_NAME || 'parks-dup-assets-tools';
+const IS_OFFLINE =
+  process.env.IS_OFFLINE && process.env.IS_OFFLINE === "true" ? true : false;
+const EXPIRY_TIME = process.env.EXPORT_EXPIRY_TIME
+  ? Number(process.env.EXPORT_EXPIRY_TIME)
+  : 60 * 15; // 15 minutes
 
 exports.handler = async (event, context) => {
   logger.debug('Export Pass', event);
@@ -97,27 +103,37 @@ exports.handler = async (event, context) => {
       // Write to S3.
       // TODO: In future, token.data.idir_userid needs to be something else unique,
       // as we will have BCeID/BCSC card IDPs generating exports.
+      const key = '/tmp/' + token.data.idir_userid + '/passExport.csv';
+
       const params = {
-        Bucket: process.env.S3_BUCKET_DATA,
-        Key: '/' + token.data.idir_userid + '/passExport.csv',
+        Bucket: bucket,
+        Key: key,
         Body: csvData
       }
-      const expiryTime = 60 * 15; // 15 minutes
       let res = null;
       try {
         // Upload file
         logger.info("Uploading to S3");
         res = await // The `.promise()` call might be on an JS SDK v2 client API.
         // If yes, please remove .promise(). If not, remove this comment.
-        S3.putObject(params)
+        s3.putObject(params)
 
         // Generate URL.
         logger.info("Generating Signed URL");
-        const URL = await S3.getSignedUrl('getObject', {
-          Bucket: process.env.S3_BUCKET_DATA,
-          Expires: expiryTime,
-          Key: '/' + token.data.idir_userid + '/passExport.csv',
-        });
+        let URL = "";
+        if (!IS_OFFLINE) {
+          logger.debug('S3_BUCKET_DATA:', bucket);
+          logger.debug('Url key:', urlKey);
+          let command = new GetObjectCommand({
+            Bucket: bucket,
+            Key: key,
+          });
+          logger.debug('command:', command);
+          URL = await getSignedUrl(
+            s3Client,
+            command,
+            { expiresIn: EXPIRY_TIME });
+        }
         logger.debug("URL:", URL);
         return sendResponse(200, { signedURL: URL }, context);
       } catch (e) {

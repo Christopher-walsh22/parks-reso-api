@@ -1,4 +1,10 @@
-const { dynamoClient, PutItemCommand, TABLE_NAME, getParks, getFacilities, sendResponse, logger, UpdateItemCommand } = require('/opt/baseLayer');
+const { dynamoClient,
+  TABLE_NAME,
+  getParks,
+  getFacilities,
+  sendResponse,
+  logger,
+  UpdateItemCommand } = require('/opt/baseLayer');
 const { getCurrentDisplayNameById } = require('/opt/dataRegisterLayer');
 
 // This function queries the bcparks database for park names. 

@@ -1,4 +1,4 @@
-const { runQuery, TABLE_NAME, logger, sendResponse, checkWarmup} = require('/opt/baseLayer');
+const { runQuery, TABLE_NAME, logger, sendResponse, checkWarmup } = require('/opt/baseLayer');
 
 exports.handler = async (event, context) => {
   logger.debug('Read Config', event);

@@ -1,4 +1,3 @@
-const AWS = require("/opt/baseLayer");
 const { dynamoClient, PutItemCommand, marshall } = require("/opt/baseLayer");
 const crypto = require("crypto");
 

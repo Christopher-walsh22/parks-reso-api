@@ -11,8 +11,9 @@ Globals:
       Variables:
         SSO_ISSUER: !Ref SSOIssuerUrl
         SSO_JWKSURI: !Ref SSOJWKSUri
-        IS_OFFLINE: true
-        DYNAMODB_ENDPOINT_URL: "http://172.17.0.2:8000"
+        IS_OFFLINE: false
+        AWSREGION: !Ref AWSDefaultRegion
+        DYNAMODB_ENDPOINT_URL: https://dynamodb.ca-central-1.amazonaws.com
 
 Parameters:
   Algorithm:
@@ -30,24 +31,24 @@ Parameters:
   CFSecretKey:
     Type: String
     Default: '1x0000000000000000000000000000000AA'
-  # DataRegisterNameAPIKey:
-  #   Type: String
-  #   Default: 'getFromDev?'
-  # DataRegistryURL:
-  #   Type: String
-  #   Default: 'getFromDev?'
+  DataRegisterApiPath:
+    Type: String
+    Default: 'String'
+  DataRegisterApiKey:
+    Type: String
+    Default: 'String'
   DisableProgressUpdates:
     Type: String
-    Default: 'True'
+    Default: false
   ExportExpiryTime:
     Type: String
     Default: '15'
   ExportFunctionName:
     Type: String
-    Default: 'parks-reso-api-api-exportAllPassInvokable'
+    Default: 'dup-api-exportAllPassInvokable'
   FeedbackSurveyUrl:
     Type: String
-    Default: 'URL'
+    Default: 'https://helpshapebc.gov.bc.ca/dup-park-experience-survey'
   FileName:
     Type: String
     Default: 'DUP_EXPORT'
@@ -56,22 +57,25 @@ Parameters:
     Default: 'String'
   GCNotifyApiKey:
     Type: String
-    Default: 'KEY'
+    Default: 'String'
   GCNotifyApiPath:
     Type: String
-    Default: 'API_PATH'
+    Default: 'String'
   GCNotifyApiSMSPath:
     Type: String
     Default: 'String'
   GCNotifyCancelTemplateID:
     Type: String
-    Default: 'CANCEL TEMPLATE ID'
+    Default: 'String'
   GCNotifyIsSendingReminders:
     Type: String
     Default: 'True'
   GCNotifyIsSendingSurveys:
     Type: String
     Default: 'NO'
+  GCNotifyParkingReceiptTemplateID:
+    Type: String
+    Default: 'String'
   GCNotifyPassCancellationRoute:
     Type: String
     Default: '/pass-lookup'
@@ -84,10 +88,13 @@ Parameters:
   GCNotifyReminderTemplateID:
     Type: String
     Default: 'SSSSSS'
-  GCNotifySMSTemplateId:
+  GCNotifySMSTemplateID:
     Type: String
     Default: 'String'
   GCNotifySurveyTemplateID:
+    Type: String
+    Default: 'String'
+  GCNotifyTrailReceiptTemplateID:
     Type: String
     Default: 'String'
   HoldPassTimeout:
@@ -95,34 +102,28 @@ Parameters:
     Default: '7m'
   JWTSecret:
     Type: String
-    Default: 'SECRET'
-  JWTSignExpiry:
-    Type: String
-    Default: 'Default_Secret'
+    Default: 'String'
   LogLevel:
     Type: String
-    Default: 'info'
+    Default: 'debug'
   LowCapacityThreshold:
     Type: String
     Default: '0.25'
   MetaTableName:
     Type: String
-    Default: 'parksreso-meta'
+    Default: 'ParksMetaDUP'
   MetricsTableName:
     Type: String
-    Default: 'parksreso-metrics'
+    Default: 'ParksMetricsDUP'
   ModerateCapacityThreshold:
     Type: String
     Default: '0.75'
-  PassShortdateIndex:
+  PassShortDateIndex:
     Type: String
     Default: 'shortPassDate-index'
-  PrivateKey:
-    Type: String
-    Default: 'DefaultKey'
   S3BucketData:
     Type: String
-    Default: 'Bucket'
+    Default: 'parks-dup-assets-tools'
   SSOIssuerUrl:
     Type: String
     Default: 'https://dev.loginproxy.gov.bc.ca/auth/realms/bcparks-service-transformation'
@@ -132,19 +133,18 @@ Parameters:
   Stage:
     Type: String
     Default: 'dev'
-  SqsQueueName:
+  SqsGCNQueueName:
     Type: String
-    Default: 'String'
-  SqsExpiryQueue:
+    Default: 'gcn-email-queue-sam'
+  SqsExpiryQueueName:
     Type: String
-    Default: 'String'
-  TableName:
+    Default: 'expiry-queue-sam'
+  TableNameParks:
     Type: String
-    Default: parksreso
+    Default: 'ParksDUP'
   WebHookURL:
     Type: String
     Default: 'default'
-
   
 Resources:
   #########
@@ -291,7 +291,7 @@ Resources:
       LicenseInfo: 'Apache-2.0'
       RetentionPolicy: Retain
     Metadata:
-      BuildMethod: makefile   
+      BuildMethod: makefile
   
   SQSLayer:
     Type: AWS::Serverless::LayerVersion
@@ -319,7 +319,6 @@ Resources:
     Metadata:
       BuildMethod: makefile
 
-
   ############
   # Functions
   ############
@@ -328,48 +327,52 @@ Resources:
     Properties:
       CodeUri: handlers/checkActivation/
       Handler: index.handler
+      Runtime: nodejs18.x
       Environment:
         Variables:
-          METRICS_TABLE_NAME: !Ref MetricsTableName
+          TABLE_NAME: !Ref TableNameParks
           META_TABLE_NAME: !Ref MetaTableName
-          SSO_ISSUER: !Ref SSOIssuerUrl
-          SSO_JWKS_URI: !Ref SSOJWKSUri
+          METRICS_TABLE_NAME: !Ref MetricsTableName
           LOG_LEVEL: !Ref LogLevel
-          TABLE_NAME: !Ref TableName
-      Layers:
-        - !Ref BaseLayer
-      Runtime: nodejs18.x
-      Architectures:
-        - x86_64
+      Policies:
+          - DynamoDBCrudPolicy:
+              TableName: !Ref TableNameParks
+          - DynamoDBCrudPolicy:
+              TableName: !Ref MetaTableName
+          - DynamoDBCrudPolicy:
+              TableName: !Ref MetricsTableName
       Events:
         ScheduleEvent:
           Type: Schedule
           Properties:
-            Schedule: "cron(0 0 * * ? *)" # Errr night at midnight
+            Schedule: "cron(0 0 * * ? *)" #  Every night at midnight
 
   CheckExpiryFunction:
     Type: AWS::Serverless::Function
-    Properties: 
+    Properties:
       CodeUri: handlers/checkExpiry/
       Handler: index.handler
+      Runtime: nodejs18.x
       Environment:
         Variables:
-          METRICS_TABLE_NAME: !Ref MetricsTableName
+          TABLE_NAME: !Ref TableNameParks
           META_TABLE_NAME: !Ref MetaTableName
-          SSO_ISSUER: !Ref SSOIssuerUrl
-          SSO_JWKS_URI: !Ref SSOJWKSUri
+          METRICS_TABLE_NAME: !Ref MetricsTableName
           LOG_LEVEL: !Ref LogLevel
-          TABLE_NAME: !Ref TableName
       Layers:
-        - !Ref BaseLayer
-      Runtime: nodejs18.x
-      Architectures:
-        - x86_64
+          - !Ref BaseLayer
+      Policies:
+          - DynamoDBCrudPolicy:
+              TableName: !Ref TableNameParks
+          - DynamoDBCrudPolicy:
+              TableName: !Ref MetaTableName
+          - DynamoDBCrudPolicy:
+              TableName: !Ref MetricsTableName
       Events:
         ScheduleEvent:
           Type: Schedule
           Properties:
-            Schedule: "cron(0 0 * * ? *)" # Errr night at midnight       
+            Schedule: "cron(0 0 * * ? *)" #  Every night at midnight       
 
   CloudWatchFunction:
     Type: AWS::Serverless::Function
@@ -381,14 +384,19 @@ Resources:
         Variables:
           AWS_ACCOUNT_LIST: !Ref AWSAccountList
           WEBHOOK_URL: !Ref WebHookURL
-          METRICS_TABLE_NAME: !Ref MetricsTableName
+          TABLE_NAME: !Ref TableNameParks
           META_TABLE_NAME: !Ref MetaTableName
-          SSO_ISSUER: !Ref SSOIssuerUrl
-          SSO_JWKS_URI: !Ref SSOJWKSUri
+          METRICS_TABLE_NAME: !Ref MetricsTableName
           LOG_LEVEL: !Ref LogLevel
-          TABLE_NAME: !Ref TableName
       Layers:
           - !Ref BaseLayer
+      Policies:
+          - DynamoDBCrudPolicy:
+              TableName: !Ref TableNameParks
+          - DynamoDBCrudPolicy:
+              TableName: !Ref MetaTableName
+          - DynamoDBCrudPolicy:
+              TableName: !Ref MetricsTableName
       Events:
         MyCloudWatchEvent:
           Type: CloudWatchEvent
@@ -399,10 +407,48 @@ Resources:
               detail-type:
                 - "Scheduled Event"
 
+  DeletePassFunction:
+    Type: AWS::Serverless::Function
+    Properties: 
+      CodeUri: handlers/deletePass/
+      Handler: index.handler
+      Runtime: nodejs18.x
+      Environment:
+        Variables:
+          ALGORITHM: !Ref Algorithm
+          JWT_SECRET: !Ref JWTSecret
+          SSO_ISSUER: !Ref SSOIssuerUrl
+          SSO_JWKSURI: !Ref SSOJWKSUri
+          CF_SECRET_KEY: !Ref CFSecretKey
+          TABLE_NAME: !Ref TableNameParks
+          META_TABLE_NAME: !Ref MetaTableName
+          METRICS_TABLE_NAME: !Ref MetricsTableName
+          LOG_LEVEL: !Ref LogLevel
+      Layers:
+          - !Ref BaseLayer
+          - !Ref PermissionLayer
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref TableNameParks
+        - DynamoDBCrudPolicy:
+            TableName: !Ref MetaTableName
+        - DynamoDBCrudPolicy:
+            TableName: !Ref MetricsTableName
+      Events:
+        deletePass:
+          Type: Api
+          Properties:
+            Path: /pass
+            Method: DELETE
+            RestApiId: !Ref ApiDeployment
+            Auth:
+              Authorizer: NONE
+              OverrideApiAuth: true
+
   ExportAllPassGetFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: handlers/exportAllPass/GET/
+      CodeUri: handlers/exportAllPass/GET
       Handler: index.handler
       Runtime: nodejs18.x
       Environment:
@@ -410,64 +456,100 @@ Resources:
           EXPORT_FUNCTION_NAME: !Ref ExportFunctionName
           EXPORT_EXPIRY_TIME: !Ref ExportExpiryTime
           S3_BUCKET_DATA: !Ref S3BucketData
-          METRICS_TABLE_NAME: !Ref MetricsTableName
-          META_TABLE_NAME: !Ref MetaTableName
           SSO_ISSUER: !Ref SSOIssuerUrl
           SSO_JWKS_URI: !Ref SSOJWKSUri
+          CF_SECRET_KEY: !Ref CFSecretKey
+          TABLE_NAME: !Ref TableNameParks
+          META_TABLE_NAME: !Ref MetaTableName
+          METRICS_TABLE_NAME: !Ref MetricsTableName
           LOG_LEVEL: !Ref LogLevel
-          TABLE_NAME: !Ref TableName
       Layers:
           - !Ref BaseLayer
           - !Ref ExportAllPassLayer
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref TableNameParks
+        - DynamoDBCrudPolicy:
+            TableName: !Ref MetaTableName
+        - DynamoDBCrudPolicy:
+            TableName: !Ref MetricsTableName
+        - LambdaInvokePolicy:
+            FunctionName:
+              !Ref ExportFunctionName
+        - S3FullAccessPolicy:
+            BucketName: !Ref S3BucketData
       Events:
-        exportAllPass:
+        exportAllPassGet:
           Type: Api
           Properties:
             Path: /export-all-pass
             Method: GET
             RestApiId: !Ref ApiDeployment
-        optionsExportAllPass:
+        exportAllPassOptions:
           Type: Api
           Properties:
             Path: /export-all-pass
             Method: OPTIONS
             RestApiId: !Ref ApiDeployment
-            Auth:
-              Authorizer: NONE
-              OverrideApiAuth: true
 
-  ExportAllPassInvokableFunction:   
+  ExportAllPassInvokableFunction:        
     Type: AWS::Serverless::Function
     Properties:
       Handler: index.handler
       CodeUri: handlers/exportAllPass/invokable/
       Runtime: nodejs18.x
+      FunctionName: !Ref ExportFunctionName
       Environment:
         Variables:
           DISABLE_PROGRESS_UPDATES: !Ref DisableProgressUpdates
           FILE_NAME: !Ref FileName
           S3_BUCKET_DATA: !Ref S3BucketData
+          TABLE_NAME: !Ref TableNameParks
+          META_TABLE_NAME: !Ref MetaTableName
+          METRICS_TABLE_NAME: !Ref MetricsTableName
+          LOG_LEVEL: !Ref LogLevel
+      Layers:
+          - !Ref BaseLayer
+          - !Ref ExportAllPassLayer
+      Policies:
+          - DynamoDBCrudPolicy:
+              TableName: !Ref TableNameParks
+          - DynamoDBCrudPolicy:
+              TableName: !Ref MetaTableName
+          - DynamoDBCrudPolicy:
+              TableName: !Ref MetricsTableName
+          - S3FullAccessPolicy:
+              BucketName: !Ref S3BucketData
 
   ExportPassFunction:
     Type: AWS::Serverless::Function
     Properties: 
       CodeUri: handlers/exportPass/
       Handler: index.handler
+      Runtime: nodejs18.x
       Environment:
         Variables:
           S3_BUCKET_DATA: !Ref S3BucketData
-          METRICS_TABLE_NAME: !Ref MetricsTableName
-          META_TABLE_NAME: !Ref MetaTableName
-          LOG_LEVEL: !Ref LogLevel
+          EXPIRY_TIME: !Ref ExportExpiryTime
           SSO_ISSUER: !Ref SSOIssuerUrl
           SSO_JWKSURI: !Ref SSOJWKSUri
-          TABLE_NAME: !Ref TableName
+          CF_SECRET_KEY: !Ref CFSecretKey
+          TABLE_NAME: !Ref TableNameParks
+          META_TABLE_NAME: !Ref MetaTableName
+          METRICS_TABLE_NAME: !Ref MetricsTableName
+          LOG_LEVEL: !Ref LogLevel
       Layers:
-        - !Ref BaseLayer
-        - !Ref PermissionLayer
-      Runtime: nodejs18.x
-      Architectures:
-        - x86_64
+          - !Ref BaseLayer
+          - !Ref PermissionLayer
+      Policies:
+          - DynamoDBCrudPolicy:
+              TableName: !Ref TableNameParks
+          - DynamoDBCrudPolicy:
+              TableName: !Ref MetaTableName
+          - DynamoDBCrudPolicy:
+              TableName: !Ref MetricsTableName
+          - S3FullAccessPolicy:
+              BucketName: !Ref S3BucketData
       Events:
         exportPassGet:
           Type: Api
@@ -481,12 +563,8 @@ Resources:
             Path: /export-pass
             Method: OPTIONS
             RestApiId: !Ref ApiDeployment
-            Auth:
-              Authorizer: NONE
-              OverrideApiAuth: true
-          
 
-  purgeExpired:
+  PurgeExpired:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: handlers/purgeExpired/
@@ -494,94 +572,52 @@ Resources:
       Runtime: nodejs18.x
       Environment:
         Variables:
-          METRICS_TABLE_NAME: !Ref MetricsTableName
+          TABLE_NAME: !Ref TableNameParks
           META_TABLE_NAME: !Ref MetaTableName
-          SSO_ISSUER: !Ref SSOIssuerUrl
-          SSO_JWKS_URI: !Ref SSOJWKSUri
+          METRICS_TABLE_NAME: !Ref MetricsTableName
           LOG_LEVEL: !Ref LogLevel
       Layers:
           - !Ref BaseLayer
-
-  ReadMetricsFunction:
-    Type: AWS::Serverless::Function
-    Properties: 
-      CodeUri: handlers/readMetrics/
-      Handler: index.handler
-      Environment:
-        Variables:
-          METRICS_TABLE_NAME: !Ref MetricsTableName
-          META_TABLE_NAME: !Ref MetaTableName
-          SSO_ISSUER: !Ref SSOIssuerUrl
-          SSO_JWKS_URI: !Ref SSOJWKSUri
-          LOG_LEVEL: !Ref LogLevel
-          TABLE_NAME: !Ref TableName
-      Layers:
-        - !Ref BaseLayer
-      Runtime: nodejs18.x
-      Architectures:
-        - x86_64
-      Events:
-        readMetricsGet:
-          Type: Api
-          Properties:
-            Path: /metrics
-            Method: GET
-            RestApiId: !Ref ApiDeployment
-        readMetricsOptions:
-          Type: Api
-          Properties:
-            Path: /metrics
-            Method: OPTIONS
-            RestApiId: !Ref ApiDeployment
-
-  OptionsMetricsFunction:
-    Type: AWS::Serverless::Function
-    Properties: 
-      CodeUri: handlers/optionsMetrics/
-      Handler: index.handler
-      Environment:
-        Variables:
-          LOG_LEVEL: !Ref LogLevel
-      Layers:
-        - !Ref BaseLayer
-      Runtime: nodejs18.x
-      Architectures:
-        - x86_64
-      Events:
-        ReadMetricsOptions:
-          Type: Api
-          Properties:
-            Path: /metrics
-            Method: OPTIONS
-            RestApiId: !Ref ApiDeployment
-            Auth:
-              Authorizer: NONE
-              OverrideApiAuth: true
+      Policies:
+          - DynamoDBCrudPolicy:
+              TableName: !Ref TableNameParks
+          - DynamoDBCrudPolicy:
+              TableName: !Ref MetaTableName
+          - DynamoDBCrudPolicy:
+              TableName: !Ref MetricsTableName
 
   ReadConfigFunction:
     Type: AWS::Serverless::Function
     Properties: 
       CodeUri: handlers/readConfig/
       Handler: index.handler
+      Runtime: nodejs18.x
       Environment:
         Variables:
-          METRICS_TABLE_NAME: !Ref MetricsTableName
+          TABLE_NAME: !Ref TableNameParks
           META_TABLE_NAME: !Ref MetaTableName
-          SSO_ISSUER: !Ref SSOIssuerUrl
-          SSO_JWKS_URI: !Ref SSOJWKSUri
+          METRICS_TABLE_NAME: !Ref MetricsTableName
           LOG_LEVEL: !Ref LogLevel
-          TABLE_NAME: !Ref TableName
       Layers:
-        - !Ref BaseLayer
-      Runtime: nodejs18.x
-      Architectures:
-        - x86_64
+          - !Ref BaseLayer
+          - !Ref PermissionLayer
+      Policies:
+          - DynamoDBCrudPolicy:
+              TableName: !Ref TableNameParks
+          - DynamoDBCrudPolicy:
+              TableName: !Ref MetaTableName
+          - DynamoDBCrudPolicy:
+              TableName: !Ref MetricsTableName
       Events:
-        readConfig:
+        readConfigGet:
           Type: Api
           Properties:
             Path: /config
             Method: GET
+            RestApiId: !Ref ApiDeployment
+            Auth:
+              Authorizer: NONE
+              OverrideApiAuth: true
         readConfigOptions:
           Type: Api
           Properties:
@@ -597,21 +633,26 @@ Resources:
     Properties: 
       CodeUri: handlers/readFacility/
       Handler: index.handler
+      Runtime: nodejs18.x
       Environment:
         Variables:
-          METRICS_TABLE_NAME: !Ref MetricsTableName
-          META_TABLE_NAME: !Ref MetaTableName
           SSO_ISSUER: !Ref SSOIssuerUrl
           SSO_JWKS_URI: !Ref SSOJWKSUri
-          LOG_LEVEL: !Ref LogLevel
           CF_SECRET_KEY: !Ref CFSecretKey
-          TABLE_NAME: !Ref TableName
+          TABLE_NAME: !Ref TableNameParks
+          META_TABLE_NAME: !Ref MetaTableName
+          METRICS_TABLE_NAME: !Ref MetricsTableName
+          LOG_LEVEL: !Ref LogLevel
       Layers:
-        - !Ref BaseLayer
-        - !Ref PermissionLayer
-      Runtime: nodejs18.x
-      Architectures:
-        - x86_64
+          - !Ref BaseLayer
+          - !Ref PermissionLayer
+      Policies:
+          - DynamoDBCrudPolicy:
+              TableName: !Ref TableNameParks
+          - DynamoDBCrudPolicy:
+              TableName: !Ref MetaTableName
+          - DynamoDBCrudPolicy:
+              TableName: !Ref MetricsTableName
       Events:
         readFacilityGet:
           Type: Api
@@ -637,17 +678,22 @@ Resources:
     Properties: 
       CodeUri: handlers/readFaq/
       Handler: index.handler
+      Runtime: nodejs18.x
       Environment:
         Variables:
+          TABLE_NAME: !Ref TableNameParks
           META_TABLE_NAME: !Ref MetaTableName
           METRICS_TABLE_NAME: !Ref MetricsTableName
           LOG_LEVEL: !Ref LogLevel
-          TABLE_NAME: !Ref TableName
       Layers:
-        - !Ref BaseLayer
-      Runtime: nodejs18.x
-      Architectures:
-        - x86_64
+          - !Ref BaseLayer
+      Policies:
+          - DynamoDBCrudPolicy:
+              TableName: !Ref TableNameParks
+          - DynamoDBCrudPolicy:
+              TableName: !Ref MetaTableName
+          - DynamoDBCrudPolicy:
+              TableName: !Ref MetricsTableName
       Events:
         readFaqGet:
           Type: Api
@@ -668,26 +714,73 @@ Resources:
               Authorizer: NONE
               OverrideApiAuth: true
 
+  ReadMetricsFunction:
+    Type: AWS::Serverless::Function
+    Properties: 
+      CodeUri: handlers/readMetrics/
+      Handler: index.handler
+      Runtime: nodejs18.x
+      Environment:
+        Variables:
+          SSO_ISSUER: !Ref SSOIssuerUrl
+          SSO_JWKS_URI: !Ref SSOJWKSUri
+          CF_SECRET_KEY: !Ref CFSecretKey
+          TABLE_NAME: !Ref TableNameParks
+          META_TABLE_NAME: !Ref MetaTableName
+          METRICS_TABLE_NAME: !Ref MetricsTableName
+          LOG_LEVEL: !Ref LogLevel
+      Layers:
+          - !Ref BaseLayer
+          - !Ref PermissionLayer
+      Policies:
+          - DynamoDBCrudPolicy:
+              TableName: !Ref TableNameParks
+          - DynamoDBCrudPolicy:
+              TableName: !Ref MetaTableName
+          - DynamoDBCrudPolicy:
+              TableName: !Ref MetricsTableName
+      Events:
+        readMetricsGet:
+          Type: Api
+          Properties:
+            Path: /metrics
+            Method: GET
+            RestApiId: !Ref ApiDeployment
+        readMetricsOptions:
+          Type: Api
+          Properties:
+            Path: /metrics
+            Method: OPTIONS
+            RestApiId: !Ref ApiDeployment
+            Auth:
+              Authorizer: NONE
+              OverrideApiAuth: true
+
   ReadParkFunction:
     Type: AWS::Serverless::Function
     Properties: 
       CodeUri: handlers/readPark/
       Handler: index.handler
+      Runtime: nodejs18.x
       Environment:
         Variables:
-          METRICS_TABLE_NAME: !Ref MetricsTableName
-          META_TABLE_NAME: !Ref MetaTableName
-          LOG_LEVEL: !Ref LogLevel
           SSO_ISSUER: !Ref SSOIssuerUrl
           SSO_JWKSURI: !Ref SSOJWKSUri
           CF_SECRET_KEY: !Ref CFSecretKey
-          TABLE_NAME: !Ref TableName
+          TABLE_NAME: !Ref TableNameParks
+          META_TABLE_NAME: !Ref MetaTableName
+          METRICS_TABLE_NAME: !Ref MetricsTableName
+          LOG_LEVEL: !Ref LogLevel
       Layers:
-        - !Ref BaseLayer
-        - !Ref PermissionLayer
-      Runtime: nodejs18.x
-      Architectures:
-        - x86_64
+          - !Ref BaseLayer
+          - !Ref PermissionLayer
+      Policies:
+          - DynamoDBCrudPolicy:
+              TableName: !Ref TableNameParks
+          - DynamoDBCrudPolicy:
+              TableName: !Ref MetaTableName
+          - DynamoDBCrudPolicy:
+              TableName: !Ref MetricsTableName
       Events:
         readParkGet:
           Type: Api
@@ -713,6 +806,7 @@ Resources:
     Properties: 
       CodeUri: handlers/readPass/
       Handler: index.handler
+      Runtime: nodejs18.x
       Environment:
         Variables:
           ALGORITHM: !Ref Algorithm
@@ -720,20 +814,25 @@ Resources:
           PUBLIC_FRONTEND: !Ref GCNotifyPublicFrontend
           PASS_CANCELLATION_ROUTE: !Ref GCNotifyPassCancellationRoute
           GC_NOTIFY_API_PATH: !Ref GCNotifyApiPath
+          GC_NOTIFY_API_KEY: !Ref GCNotifyApiKey
           GC_NOTIFY_CANCEL_TEMPLATE_ID: !Ref GCNotifyCancelTemplateID
-          METRICS_TABLE_NAME: !Ref MetricsTableName
-          META_TABLE_NAME: !Ref MetaTableName
-          LOG_LEVEL: !Ref LogLevel
           SSO_ISSUER: !Ref SSOIssuerUrl
           SSO_JWKSURI: !Ref SSOJWKSUri
           CF_SECRET_KEY: !Ref CFSecretKey
-          TABLE_NAME: !Ref TableName
+          TABLE_NAME: !Ref TableNameParks
+          META_TABLE_NAME: !Ref MetaTableName
+          METRICS_TABLE_NAME: !Ref MetricsTableName
+          LOG_LEVEL: !Ref LogLevel
       Layers:
-        - !Ref PermissionLayer
-        - !Ref BaseLayer
-      Runtime: nodejs18.x
-      Architectures:
-        - x86_64
+          - !Ref BaseLayer
+          - !Ref PermissionLayer
+      Policies:
+          - DynamoDBCrudPolicy:
+              TableName: !Ref TableNameParks
+          - DynamoDBCrudPolicy:
+              TableName: !Ref MetaTableName
+          - DynamoDBCrudPolicy:
+              TableName: !Ref MetricsTableName
       Events:
         readPassGet:
           Type: Api
@@ -759,24 +858,29 @@ Resources:
     Properties: 
       CodeUri: handlers/readReservation/
       Handler: index.handler
+      Runtime: nodejs18.x
       Environment:
         Variables:
-          METRICS_TABLE_NAME: !Ref MetricsTableName
-          META_TABLE_NAME: !Ref MetaTableName
-          LOG_LEVEL: !Ref LogLevel
+          LOW_CAPACITY_THRESHOLD: !Ref LowCapacityThreshold
+          MODERATE_CAPACITY_THRESHOLD: !Ref ModerateCapacityThreshold
           SSO_ISSUER: !Ref SSOIssuerUrl
           SSO_JWKSURI: !Ref SSOJWKSUri
-          MODERATE_CAPACITY_THRESHOLD: !Ref ModerateCapacityThreshold
-          LOW_CAPACITY_THRESHOLD: !Ref LowCapacityThreshold
           CF_SECRET_KEY: !Ref CFSecretKey
-          TABLE_NAME: !Ref TableName
+          TABLE_NAME: !Ref TableNameParks
+          META_TABLE_NAME: !Ref MetaTableName
+          METRICS_TABLE_NAME: !Ref MetricsTableName
+          LOG_LEVEL: !Ref LogLevel
       Layers:
-        - !Ref BaseLayer
-        - !Ref PermissionLayer
-        - !Ref ReservationLayer
-      Runtime: nodejs18.x
-      Architectures:
-        - x86_64
+          - !Ref BaseLayer
+          - !Ref PermissionLayer
+          - !Ref ReservationLayer
+      Policies:
+          - DynamoDBCrudPolicy:
+              TableName: !Ref TableNameParks
+          - DynamoDBCrudPolicy:
+              TableName: !Ref MetaTableName
+          - DynamoDBCrudPolicy:
+              TableName: !Ref MetricsTableName
       Events:
         readReservationGet:
           Type: Api
@@ -785,8 +889,8 @@ Resources:
             Method: GET
             RestApiId: !Ref ApiDeployment
             Auth:
-                Authorizer: NONE
-                OverrideApiAuth: true
+              Authorizer: NONE
+              OverrideApiAuth: true
         readReservationOptions:
           Type: Api
           Properties:
@@ -794,44 +898,50 @@ Resources:
             Method: OPTIONS
             RestApiId: !Ref ApiDeployment
             Auth:
-                Authorizer: NONE
-                OverrideApiAuth: true
+              Authorizer: NONE
+              OverrideApiAuth: true
   
   SendReminderFunction:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: handlers/sendReminder/
       Handler: index.handler
+      Runtime: nodejs18.x
       Environment:
         Variables:
           GC_NOTIFY_IS_SENDING_REMINDERS: !Ref GCNotifyIsSendingReminders
-          PASS_SHORTDATE_INDEX: !Ref PassShortdateIndex
+          PASS_SHORTDATE_INDEX: !Ref PassShortDateIndex
           GC_NOTIFY_REMINDER_TEMPLATE_ID: !Ref GCNotifyReminderTemplateID
           GC_NOTIFY_API_BULK_PATH: !Ref GCNotifyApiBulkPath
           GC_NOTIFY_API_KEY: !Ref GCNotifyApiKey
           WEBHOOK_URL: !Ref WebHookURL
           PUBLIC_FRONTEND: !Ref GCNotifyPublicFrontend
           PASS_CANCELLATION_ROUTE: !Ref GCNotifyPassCancellationRoute
-          GC_NOTIFY_SMS_TEMPLATE_ID: !Ref GCNotifySMSTemplateId
+          GC_NOTIFY_SMS_TEMPLATE_ID: !Ref GCNotifySMSTemplateID
           GC_NOTIFY_API_SMS_PATH: !Ref GCNotifyApiSMSPath
+          TABLE_NAME: !Ref TableNameParks
           META_TABLE_NAME: !Ref MetaTableName
           METRICS_TABLE_NAME: !Ref MetricsTableName
           LOG_LEVEL: !Ref LogLevel
-          TABLE_NAME: !Ref TableName
       Layers:
-        - !Ref GCNotifyLayer
-        - !Ref WebHookLayer
-        - !Ref SMSLayer
-      Runtime: nodejs18.x
-      Architectures:
-        - x86_64
+          - !Ref BaseLayer
+          - !Ref GCNotifyLayer
+          - !Ref WebHookLayer
+          - !Ref SMSLayer
+      Policies:
+          - DynamoDBCrudPolicy:
+              TableName: !Ref TableNameParks
+          - DynamoDBCrudPolicy:
+              TableName: !Ref MetaTableName
+          - DynamoDBCrudPolicy:
+              TableName: !Ref MetricsTableName
       Events:
         ScheduleEvent:
           Type: Schedule
           Properties:
-            Schedule: "cron(0 0 * * ? *)" # Errr night at midnight
+            Schedule: "cron(0 0 * * ? *)" #  Every night at midnight
 
-  sendSurvey:
+  SendSurveyFunction:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: handlers/sendSurvey/
@@ -839,24 +949,31 @@ Resources:
       Runtime: nodejs18.x
       Environment:
         Variables:
-          PASS_SHORTDATE_INDEX: !Ref PassShortdateIndex
+          PASS_SHORTDATE_INDEX: !Ref PassShortDateIndex
           FEEDBACK_SURVEY_URL: !Ref FeedbackSurveyUrl
           GC_NOTIFY_IS_SENDING_SURVEYS: !Ref GCNotifyIsSendingSurveys
           GC_NOTIFY_SURVEY_TEMPLATE_ID: !Ref GCNotifySurveyTemplateID
           GC_NOTIFY_API_BULK_PATH: !Ref GCNotifyApiBulkPath
           GC_NOTIFY_API_KEY: !Ref GCNotifyApiKey
           WEBHOOK_URL: !Ref WebHookURL
-          METRICS_TABLE_NAME: !Ref MetricsTableName
-          META_TABLE_NAME: !Ref MetaTableName
           SSO_ISSUER: !Ref SSOIssuerUrl
           SSO_JWKS_URI: !Ref SSOJWKSUri
+          CF_SECRET_KEY: !Ref CFSecretKey
+          TABLE_NAME: !Ref TableNameParks
+          META_TABLE_NAME: !Ref MetaTableName
+          METRICS_TABLE_NAME: !Ref MetricsTableName
           LOG_LEVEL: !Ref LogLevel
-          ALGORITHM: !Ref Algorithm
-          TABLE_NAME: !Ref TableName
       Layers:
           - !Ref BaseLayer
           - !Ref WebHookLayer
           - !Ref GCNotifyLayer
+      Policies:
+          - DynamoDBCrudPolicy:
+              TableName: !Ref TableNameParks
+          - DynamoDBCrudPolicy:
+              TableName: !Ref MetaTableName
+          - DynamoDBCrudPolicy:
+              TableName: !Ref MetricsTableName
 
   SQSProcessorFunction:
     Type: AWS::Serverless::Function
@@ -868,16 +985,46 @@ Resources:
         Variables:
           GC_NOTIFY_API_PATH: !Ref GCNotifyApiPath
           GC_NOTIFY_API_KEY: !Ref GCNotifyApiKey
-          METRICS_TABLE_NAME: !Ref MetricsTableName
+          TABLE_NAME: !Ref TableNameParks
           META_TABLE_NAME: !Ref MetaTableName
-          SSO_ISSUER: !Ref SSOIssuerUrl
-          SSO_JWKS_URI: !Ref SSOJWKSUri
+          METRICS_TABLE_NAME: !Ref MetricsTableName
           LOG_LEVEL: !Ref LogLevel
-          TABLE_NAME: !Ref TableName
       Layers:
           - !Ref BaseLayer  
+      Policies:
+          - DynamoDBCrudPolicy:
+              TableName: !Ref TableNameParks
+          - DynamoDBCrudPolicy:
+              TableName: !Ref MetaTableName
+          - DynamoDBCrudPolicy:
+              TableName: !Ref MetricsTableName
 
-  warmupFunction:
+  UpdateParkNameFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: handlers/updateParkName/
+      Handler: index.handler
+      Runtime: nodejs18.x
+      Environment:
+        Variables:
+          DATA_REGISTER_URL: !Ref DataRegisterApiPath
+          DATA_REGISTER_NAME_API_KEY: !Ref DataRegisterApiKey
+          TABLE_NAME: !Ref TableNameParks
+          META_TABLE_NAME: !Ref MetaTableName
+          METRICS_TABLE_NAME: !Ref MetricsTableName
+          LOG_LEVEL: !Ref LogLevel
+      Layers:
+          - !Ref BaseLayer
+          - !Ref DataRegisterLayer
+      Policies:
+          - DynamoDBCrudPolicy:
+              TableName: !Ref TableNameParks
+          - DynamoDBCrudPolicy:
+              TableName: !Ref MetaTableName
+          - DynamoDBCrudPolicy:
+              TableName: !Ref MetricsTableName
+
+  WarmupFunction:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: handlers/warmup/
@@ -885,14 +1032,19 @@ Resources:
       Runtime: nodejs18.x
       Environment:
         Variables:
-          METRICS_TABLE_NAME: !Ref MetricsTableName
+          TABLE_NAME: !Ref TableNameParks
           META_TABLE_NAME: !Ref MetaTableName
-          SSO_ISSUER: !Ref SSOIssuerUrl
-          SSO_JWKS_URI: !Ref SSOJWKSUri
+          METRICS_TABLE_NAME: !Ref MetricsTableName
           LOG_LEVEL: !Ref LogLevel
-          TABLE_NAME: !Ref TableName
       Layers:
           - !Ref BaseLayer
+      Policies:
+          - DynamoDBCrudPolicy:
+              TableName: !Ref TableNameParks
+          - DynamoDBCrudPolicy:
+              TableName: !Ref MetaTableName
+          - DynamoDBCrudPolicy:
+              TableName: !Ref MetricsTableName
 
   WriteConfigFunction:
     Type: AWS::Serverless::Function
@@ -902,49 +1054,25 @@ Resources:
       Runtime: nodejs18.x
       Environment:
         Variables:
-          METRICS_TABLE_NAME: !Ref MetricsTableName
+          TABLE_NAME: !Ref TableNameParks
           META_TABLE_NAME: !Ref MetaTableName
-          SSO_ISSUER: !Ref SSOIssuerUrl
-          SSO_JWKS_URI: !Ref SSOJWKSUri
+          METRICS_TABLE_NAME: !Ref MetricsTableName
           LOG_LEVEL: !Ref LogLevel
-          TABLE_NAME: !Ref TableName
       Layers:
-          - !Ref BaseLayer         
+          - !Ref BaseLayer
+      Policies:
+          - DynamoDBCrudPolicy:
+              TableName: !Ref TableNameParks
+          - DynamoDBCrudPolicy:
+              TableName: !Ref MetaTableName
+          - DynamoDBCrudPolicy:
+              TableName: !Ref MetricsTableName
       Events:
-        writeConfig:
+        writeConfigPost:
           Type: Api
           Properties:
             Path: /config
             Method: POST
-            RestApiId: !Ref ApiDeployment
-
-  WriteModifierFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: handlers/writeModifier/
-      Handler: index.handler
-      Runtime: nodejs18.x
-      Environment:
-        Variables:
-          METRICS_TABLE_NAME: !Ref MetricsTableName
-          META_TABLE_NAME: !Ref MetaTableName
-          LOG_LEVEL: !Ref LogLevel
-          SSO_ISSUER: !Ref SSOIssuerUrl
-          SSO_JWKSURI: !Ref SSOJWKSUri
-          MODERATE_CAPACITY_THRESHOLD: !Ref ModerateCapacityThreshold
-          LOW_CAPACITY_THRESHOLD: !Ref LowCapacityThreshold
-          TABLE_NAME: !Ref TableName
-      Layers:
-          - !Ref PermissionLayer
-          - !Ref BaseLayer
-          - !Ref FacilityLayer
-          - !Ref ReservationLayer         
-      Events:
-        writeModifier:
-          Type: Api
-          Properties:
-            Path: /modifier
-            Method: PUT
             RestApiId: !Ref ApiDeployment
 
   WriteMetricsFunction:
@@ -955,21 +1083,65 @@ Resources:
       Runtime: nodejs18.x
       Environment:
         Variables:
-          METRICS_TABLE_NAME: !Ref MetricsTableName
-          META_TABLE_NAME: !Ref MetaTableName
-          LOG_LEVEL: !Ref LogLevel
-          MODERATE_CAPACITY_THRESHOLD: !Ref ModerateCapacityThreshold
           LOW_CAPACITY_THRESHOLD: !Ref LowCapacityThreshold
-          TABLE_NAME: !Ref TableName
+          MODERATE_CAPACITY_THRESHOLD: !Ref ModerateCapacityThreshold
+          TABLE_NAME: !Ref TableNameParks
+          META_TABLE_NAME: !Ref MetaTableName
+          METRICS_TABLE_NAME: !Ref MetricsTableName
+          LOG_LEVEL: !Ref LogLevel
       Layers:
-          - !Ref MetricsLayer
           - !Ref BaseLayer
+          - !Ref MetricsLayer
           - !Ref ReservationLayer
+      Policies:
+          - DynamoDBCrudPolicy:
+              TableName: !Ref TableNameParks
+          - DynamoDBCrudPolicy:
+              TableName: !Ref MetaTableName
+          - DynamoDBCrudPolicy:
+              TableName: !Ref MetricsTableName
       Events:
           writeMetrics:
             Type: Schedule
             Properties:
-              Schedule: "cron(0 0 * * ? *)" #Errr night at midnight
+              Schedule: "cron(0 0 * * ? *)" # Every night at midnight
+
+  WriteModifierFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: handlers/writeModifier/
+      Handler: index.handler
+      Runtime: nodejs18.x
+      Environment:
+        Variables:
+          MODERATE_CAPACITY_THRESHOLD: !Ref ModerateCapacityThreshold
+          LOW_CAPACITY_THRESHOLD: !Ref LowCapacityThreshold
+          SSO_ISSUER: !Ref SSOIssuerUrl
+          SSO_JWKSURI: !Ref SSOJWKSUri
+          CF_SECRET_KEY: !Ref CFSecretKey
+          TABLE_NAME: !Ref TableNameParks
+          META_TABLE_NAME: !Ref MetaTableName
+          METRICS_TABLE_NAME: !Ref MetricsTableName
+          LOG_LEVEL: !Ref LogLevel
+      Layers:
+          - !Ref BaseLayer
+          - !Ref PermissionLayer
+          - !Ref FacilityLayer
+          - !Ref ReservationLayer
+      Policies:
+          - DynamoDBCrudPolicy:
+              TableName: !Ref TableNameParks
+          - DynamoDBCrudPolicy:
+              TableName: !Ref MetaTableName
+          - DynamoDBCrudPolicy:
+              TableName: !Ref MetricsTableName    
+      Events:
+        writeModifierPut:
+          Type: Api
+          Properties:
+            Path: /modifier
+            Method: PUT
+            RestApiId: !Ref ApiDeployment
           
   WriteParkFunction:
     Type: AWS::Serverless::Function
@@ -979,16 +1151,23 @@ Resources:
       Runtime: nodejs18.x
       Environment:
         Variables:
-          METRICS_TABLE_NAME: !Ref MetricsTableName
-          META_TABLE_NAME: !Ref MetaTableName
           SSO_ISSUER: !Ref SSOIssuerUrl
           SSO_JWKS_URI: !Ref SSOJWKSUri
-          LOG_LEVEL: !Ref LogLevel
           CF_SECRET_KEY: !Ref CFSecretKey
-          TABLE_NAME: !Ref TableName
+          TABLE_NAME: !Ref TableNameParks
+          META_TABLE_NAME: !Ref MetaTableName
+          METRICS_TABLE_NAME: !Ref MetricsTableName
+          LOG_LEVEL: !Ref LogLevel
       Layers:
-          - !Ref PermissionLayer
           - !Ref BaseLayer
+          - !Ref PermissionLayer
+      Policies:
+          - DynamoDBCrudPolicy:
+              TableName: !Ref TableNameParks
+          - DynamoDBCrudPolicy:
+              TableName: !Ref MetaTableName
+          - DynamoDBCrudPolicy:
+              TableName: !Ref MetricsTableName  
       Events:
         writeParkPost:
           Type: Api
@@ -1011,19 +1190,27 @@ Resources:
       Runtime: nodejs18.x
       Environment:
         Variables:
-          METRICS_TABLE_NAME: !Ref MetricsTableName
-          META_TABLE_NAME: !Ref MetaTableName
-          LOG_LEVEL: !Ref LogLevel
-          SSO_ISSUER: !Ref SSOIssuerUrl
-          SSO_JWKSURI: !Ref SSOJWKSUri
           LOW_CAPACITY_THRESHOLD: !Ref LowCapacityThreshold
           MODERATE_CAPACITY_THRESHOLD: !Ref ModerateCapacityThreshold
-          TABLE_NAME: !Ref TableName
+          SSO_ISSUER: !Ref SSOIssuerUrl
+          SSO_JWKSURI: !Ref SSOJWKSUri
+          CF_SECRET_KEY: !Ref CFSecretKey
+          TABLE_NAME: !Ref TableNameParks
+          META_TABLE_NAME: !Ref MetaTableName
+          METRICS_TABLE_NAME: !Ref MetricsTableName
+          LOG_LEVEL: !Ref LogLevel
       Layers:
-          - !Ref PermissionLayer
           - !Ref BaseLayer
+          - !Ref PermissionLayer
           - !Ref ReservationLayer
           - !Ref FacilityLayer
+      Policies:
+          - DynamoDBCrudPolicy:
+              TableName: !Ref TableNameParks
+          - DynamoDBCrudPolicy:
+              TableName: !Ref MetaTableName
+          - DynamoDBCrudPolicy:
+              TableName: !Ref MetricsTableName
       Events:
         writeFacility:
           Type: Api
@@ -1043,21 +1230,26 @@ Resources:
     Properties: 
       CodeUri: handlers/writeFaq/
       Handler: index.handler
+      Runtime: nodejs18.x
       Environment:
         Variables:
-          METRICS_TABLE_NAME: !Ref MetricsTableName
-          META_TABLE_NAME: !Ref MetaTableName
-          LOG_LEVEL: !Ref LogLevel
           SSO_ISSUER: !Ref SSOIssuerUrl
           SSO_JWKSURI: !Ref SSOJWKSUri
-          TABLE_NAME: !Ref TableName
           CF_SECRET_KEY: !Ref CFSecretKey
+          TABLE_NAME: !Ref TableNameParks
+          META_TABLE_NAME: !Ref MetaTableName
+          METRICS_TABLE_NAME: !Ref MetricsTableName
+          LOG_LEVEL: !Ref LogLevel
       Layers:
         - !Ref BaseLayer
         - !Ref PermissionLayer
-      Runtime: nodejs18.x
-      Architectures:
-        - x86_64
+      Policies:
+          - DynamoDBCrudPolicy:
+              TableName: !Ref TableNameParks
+          - DynamoDBCrudPolicy:
+              TableName: !Ref MetaTableName
+          - DynamoDBCrudPolicy:
+              TableName: !Ref MetricsTableName
       Events:
         writeFaq:
           Type: Api
@@ -1069,42 +1261,43 @@ Resources:
   WritePassFunction:
     Type: AWS::Serverless::Function
     Properties: 
-      MemorySize: 1024
       CodeUri: handlers/writePass/
       Handler: index.handler
+      Runtime: nodejs18.x
       Environment:
         Variables:
-          METRICS_TABLE_NAME: !Ref MetricsTableName
-          PUBLIC_FRONTEND: !Ref GCNotifyPublicFrontend
+          ALGORITHM: !Ref Algorithm
+          GC_NOTIFY_PARKING_RECEIPT_TEMPLATE_ID: !Ref GCNotifyParkingReceiptTemplateID
+          GC_NOTIFY_TRAIL_RECEIPT_TEMPLATE_ID: !Ref GCNotifyTrailReceiptTemplateID
           PASS_CANCELLATION_ROUTE: !Ref GCNotifyPassCancellationRoute
-          META_TABLE_NAME: !Ref MetaTableName
-          LOG_LEVEL: !Ref LogLevel
           PASS_MANAGEMENT_ROUTE: !Ref GCNotifyPassManagementRoute
           ADMIN_FRONTEND: !Ref AdminFrontEnd
           JWT_SECRET: !Ref JWTSecret
-          JWT_SIGN_EXPIRY: !Ref JWTSignExpiry
-          PRIVATE_KEY: !Ref PrivateKey
-          AWSDEFAULTREGION: !Ref AWSDefaultRegion
-          ALGORITHM: !Ref Algorithm
-          SQSQUEUENAME: !Ref SqsQueueName
-          SQSEXPIRTY_QUEUE: !Ref SqsExpiryQueue
-          AWSREGION: !Ref AWSDefaultRegion
+          HOLD_PASS_TIMEOUT: !Ref HoldPassTimeout
+          SQSQUEUENAME: !Ref SqsGCNQueueName
+          SQSEXPIRY_QUEUE: !Ref SqsExpiryQueueName
+          LOW_CAPACITY_THRESHOLD: !Ref LowCapacityThreshold
+          MODERATE_CAPACITY_THRESHOLD: !Ref ModerateCapacityThreshold
           SSO_ISSUER: !Ref SSOIssuerUrl
           SSO_JWKSURI: !Ref SSOJWKSUri
-          MODERATE_CAPACITY_THRESHOLD: !Ref ModerateCapacityThreshold
-          LOW_CAPACITY_THRESHOLD: !Ref LowCapacityThreshold
-          HOLD_PASS_TIMEOUT: !Ref HoldPassTimeout
           CF_SECRET_KEY: !Ref CFSecretKey
-          TABLE_NAME: !Ref TableName
+          TABLE_NAME: !Ref TableNameParks
+          META_TABLE_NAME: !Ref MetaTableName
+          METRICS_TABLE_NAME: !Ref MetricsTableName
+          LOG_LEVEL: !Ref LogLevel
       Layers:
         - !Ref BaseLayer
         - !Ref PermissionLayer
         - !Ref PassLayer
         - !Ref JWTLayer
         - !Ref ReservationLayer
-      Runtime: nodejs18.x
-      Architectures:
-        - x86_64
+      Policies:
+          - DynamoDBCrudPolicy:
+              TableName: !Ref TableNameParks
+          - DynamoDBCrudPolicy:
+              TableName: !Ref MetaTableName
+          - DynamoDBCrudPolicy:
+              TableName: !Ref MetricsTableName
       Events:
         writePassPost:
           Type: Api
@@ -1124,40 +1317,135 @@ Resources:
             Auth:
               Authorizer: NONE
               OverrideApiAuth: true
-        
-        
-  DeletePassFunction:
-    Type: AWS::Serverless::Function
-    Properties: 
-      CodeUri: handlers/deletePass/
-      Handler: index.handler
-      Environment:
-        Variables:
-          ALGORITHM: !Ref Algorithm
-          JWT_SECRET: !Ref JWTSecret
-          METRICS_TABLE_NAME: !Ref MetricsTableName
-          META_TABLE_NAME: !Ref MetaTableName
-          LOG_LEVEL: !Ref LogLevel
-          SSO_ISSUER: !Ref SSOIssuerUrl
-          SSO_JWKSURI: !Ref SSOJWKSUri
-          CF_SECRET_KEY: !Ref CFSecretKey
-          TABLE_NAME: !Ref TableName
-      Layers:
-        - !Ref PermissionLayer
-        - !Ref BaseLayer
-      Runtime: nodejs18.x
-      Architectures:
-        - x86_64
-      Events:
-        deletePass:
-          Type: Api
+        sqsGCNEmailEvent:
+          Type: SQS
           Properties:
-            Path: /pass
-            Method: DELETE
-            RestApiId: !Ref ApiDeployment
-            Auth:
-              Authorizer: NONE
-              OverrideApiAuth: true
+            Queue: !GetAtt SqsGcnEmailQueue.Arn
+        sqsEmailExpiryEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt SqsGcnEmailQueue.Arn
+
+  #################
+  # DynamoDB Tables
+  #################
+  ParksDUP:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      TableName: !Ref TableNameParks
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+        - AttributeName: sk
+          KeyType: RANGE
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+        - AttributeName: sk
+          AttributeType: S
+        - AttributeName: shortPassDate
+          AttributeType: S
+        - AttributeName: passStatus
+          AttributeType: S
+        - AttributeName: facilityName
+          AttributeType: S
+      GlobalSecondaryIndexes:
+        - IndexName: manualLookup-index
+          KeySchema:
+            - AttributeName: shortPassDate
+              KeyType: HASH
+            - AttributeName: facilityName
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: passStatus-index
+          KeySchema:
+            - AttributeName: passStatus
+              KeyType: HASH
+          Projection:
+            ProjectionType: INCLUDE
+            NonKeyAttributes:
+              - pk
+              - sk
+              - date
+              - type
+        - IndexName: shortPassDate-index
+          KeySchema:
+            - AttributeName: shortPassDate
+              KeyType: HASH
+            - AttributeName: facilityName
+              KeyType: RANGE
+          Projection:
+            ProjectionType: INCLUDE
+            NonKeyAttributes:
+              - phoneNumber
+              - parkName
+              - facilityType
+              - lastName
+              - creationDate
+              - email
+              - searchLastName
+              - firstName
+              - numberOfGuests
+              - license
+              - date
+              - searchFirstName
+              - pk
+              - registrationNumber
+              - isOverbooked
+              - passStatus
+              - type
+      BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
+
+  ParksMetaDUP:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      TableName: !Ref MetaTableName
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+        - AttributeName: sk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+        - AttributeName: sk
+          KeyType: RANGE
+      BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
+
+  ParksMetricsDUP:
+    Type: "AWS::DynamoDB::Table"
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      TableName: !Ref MetricsTableName
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+        - AttributeName: sk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+        - AttributeName: sk
+          KeyType: RANGE
+      BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
 
   #############
   # Authorizer
@@ -1167,16 +1455,16 @@ Resources:
     Properties:
       CodeUri: handlers/authorizer/
       Handler: index.handler
-      Layers:
-        - !Ref BaseLayer
-        - !Ref PermissionLayer
       Runtime: nodejs18.x
       Environment:
         Variables:
-          LOG_LEVEL: !Ref LogLevel
           SSO_ISSUER: !Ref SSOIssuerUrl
           SSO_JWKSURI: !Ref SSOJWKSUri
           CF_SECRET_KEY: !Ref CFSecretKey
+          LOG_LEVEL: !Ref LogLevel
+      Layers:
+        - !Ref BaseLayer
+        - !Ref PermissionLayer
 
   ######
   # API
@@ -1192,7 +1480,7 @@ Resources:
         MaxAge: "'600'"
       Auth:
         DefaultAuthorizer: KCAuthorizer
-        AddDefaultAuthorizerToCorsPreflight: False
+        AddDefaultAuthorizerToCorsPreflight: false
         Authorizers:
           KCAuthorizer:
             FunctionPayloadType: REQUEST
@@ -1200,6 +1488,48 @@ Resources:
             Identity:
               Headers:
                 - Authorization
+
+  ############ 
+  # S3 Bucket
+  ############
+  ParksArAssetsS3Bucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: !Ref S3BucketData
+
+  #############
+  # SQS Queues
+  #############
+  SqsGcnEmailQueue:
+    Type: 'AWS::SQS::Queue'
+    Properties:
+      QueueName: !Ref SqsGCNQueueName
+
+  SqsExpiryQueue:
+    Type: 'AWS::SQS::Queue'
+    Properties:
+      QueueName: !Ref SqsExpiryQueueName
+      
+  ##############
+  # SQS Policies
+  ##############
+  SQSPolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - sqs:SendMessage
+            Resource: 
+              - !GetAtt SqsGcnEmailQueue.Arn
+              - !GetAtt SqsExpiryQueue.Arn
+            Principal:
+              Service: !Sub 'lambda.${AWS::Region}.amazonaws.com'
+      Queues:
+        - !Ref SqsGcnEmailQueue
+        - !Ref SqsExpiryQueue
 
 Outputs:
   ApiDeployment:

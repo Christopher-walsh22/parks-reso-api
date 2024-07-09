@@ -1,8 +1,8 @@
-const { S3 } = require("@aws-sdk/client-s3");
-const s3 = new S3();
 const { runScan, TABLE_NAME, logger } = require("/opt/baseLayer");
 const { updateJobEntry } = require("/opt/getAllPassLayer");
 const csvjson = require('csvjson');
+
+const bucket = process.env.S3_BUCKET_DATA || "parks-dup-assets-tools";
 
 const FILE_NAME = process.env.FILE_NAME || "DUP_Export";
 
@@ -25,7 +25,7 @@ exports.handler = async (event, context) => {
   try {
     if (event?.jobId && event?.roles) {
       jobid = event.jobId;
-      s3Key = jobid + "/" + FILE_NAME + ".csv";
+      s3Key = jobid + "/tmp/" + FILE_NAME + ".csv";
 
       queryObj.ExpressionAttributeValues = {};
       queryObj.ExpressionAttributeValues[':pk'] = { S: 'pass::' };
@@ -47,7 +47,7 @@ exports.handler = async (event, context) => {
       await updateJobWithState(jobid, null, 3, "Uploading file", 75);
 
       const params = {
-        Bucket: process.env.S3_BUCKET_DATA,
+        Bucket: bucket,
         Key: s3Key,
         Body: csvData
       }

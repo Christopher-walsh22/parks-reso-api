@@ -1,12 +1,12 @@
 const axios = require('axios');
 const { logger } = require('/opt/baseLayer');
 
-const DATA_REGISTRY_URL = process.env.DATA_REGISTRY_URL || '';
+const DATA_REGISTER_URL = process.env.DATA_REGISTER_URL || '';
 const DATA_REGISTER_NAME_API_KEY = process.env.DATA_REGISTER_NAME_API_KEY || '';
 const ESTABLISHED_STATE = 'established';
 
 async function getCurrentNameData(identifier) {
-  const url = DATA_REGISTRY_URL + `/parks/${identifier}/name?status=${ESTABLISHED_STATE}`;
+  const url = DATA_REGISTER_URL + `/parks/${identifier}/name?status=${ESTABLISHED_STATE}`;
   try {
     const data = await axios({
       method: 'get',
