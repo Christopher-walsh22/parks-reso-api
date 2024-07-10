@@ -53,7 +53,7 @@ exports.getExpiryTime = function (token) {
     const decodedJWT = jwt.decode(token);
     if (decodedJWT && decodedJWT.iat) {
       const expiryTime = decodedJWT.exp;
-      //Return the unix value of the epiry
+      //Return the unix value of the expiry
       return expiryTime;
     } else {
       // If no created time return false 
@@ -146,7 +146,7 @@ function verifySecret(tokenString, secret, callback, sendError) {
 
       logger.debug('SSO_ISSUER', SSO_ISSUER);
 
-      // check if the dissuer matches
+      // check if the issuer matches
       let issuerMatch = decodedToken.iss == SSO_ISSUER;
 
       logger.debug('issuerMatch', issuerMatch);
@@ -170,7 +170,7 @@ async function roleFilter(records, roles) {
   return new Promise(async (resolve) => {
     const data = records.filter(record => {
       logger.debug("record:", record.roles);
-      // Sanity check if `roles` isn't defined on reacord. Default to readable.
+      // Sanity check if `roles` isn't defined on record. Default to readable.
       if (record?.roles?.length > 0) {
         return roles.some(role => record.roles.indexOf(role) != -1);
       } else {

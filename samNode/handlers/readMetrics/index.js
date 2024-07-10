@@ -9,7 +9,7 @@ exports.handler = async (event, context) => {
   }
 
   if (event?.httpMethod === 'OPTIONS') {
-    return sendResponse(200, {}, 'Success', null, context);
+    return sendResponse(200, {}, context);
   }
   logger.debug('Fetching metrics for selected date range');
 

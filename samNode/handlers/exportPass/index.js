@@ -12,6 +12,10 @@ const EXPIRY_TIME = process.env.EXPORT_EXPIRY_TIME
 exports.handler = async (event, context) => {
   logger.debug('Export Pass', event);
   logger.debug('event.queryStringParameters', event.queryStringParameters);
+  
+  if (event?.httpMethod === 'OPTIONS') {
+    return sendResponse(200, {}, context);
+  }
 
   let queryObj = {
     TableName: process.env.TABLE_NAME

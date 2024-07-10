@@ -10,7 +10,7 @@ exports.handler = async (event, context) => {
   try {
 
     if (event?.httpMethod === 'OPTIONS') {
-      return sendResponse(200, {}, 'Success', null, context);
+      return sendResponse(200, {}, context);
     }
     
     if (!event.queryStringParameters || !event.queryStringParameters.park || !event.queryStringParameters.facility) {

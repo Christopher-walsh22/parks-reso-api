@@ -141,7 +141,7 @@ async function updateItem(obj, context) {
     updateParams.UpdateExpression = updateParams.UpdateExpression + ' #up_capacity =:capacity,';
     updateParams.ExpressionAttributeValues = {
       ...updateParams.ExpressionAttributeValues,
-      ':capacity': {N: obj.park.capacity}
+      ':capacity': {N: obj.park.capacity.toString()}
     };
     updateParams.ExpressionAttributeNames = {
       ...updateParams.ExpressionAttributeNames,
@@ -203,7 +203,7 @@ async function updateItem(obj, context) {
   if (obj?.park?.specialClosure) {
     updateParams.ExpressionAttributeValues = {
       ...updateParams.ExpressionAttributeValues,
-      ':specialClosure': { BOOL: obj.park.specialClosure}
+      ':specialClosure': { BOOL: obj.park.specialClosure }
     };
   } else {
     updateParams.ExpressionAttributeValues = {
@@ -217,7 +217,7 @@ async function updateItem(obj, context) {
  if (obj?.park?.specialClosureText) {
    updateParams.ExpressionAttributeValues = {
      ...updateParams.ExpressionAttributeValues,
-     ':specialClosureText': {S: obj.park.specialClosureText}
+     ':specialClosureText': {S: obj.park.specialClosureText }
    };
  } else {
    updateParams.ExpressionAttributeValues = {

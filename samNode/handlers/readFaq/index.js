@@ -4,7 +4,7 @@ exports.handler = async function (event, context) {
     try {
         
         if (event?.httpMethod === 'OPTIONS') {
-            return sendResponse(200, {}, 'Success', null, context);
+            return sendResponse(200, {}, context);
           }
 
         let queryObj = {
