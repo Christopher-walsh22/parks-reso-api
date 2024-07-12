@@ -1,8 +1,9 @@
 const csvjson = require('csvjson');
-const { runQuery, sendResponse, logger, s3, s3Client, getSignedUrl, GetObjectCommand } = require('/opt/baseLayer');
+const { runQuery, sendResponse, logger, s3Client, getSignedUrl, GetObjectCommand, checkWarmup } = require('/opt/baseLayer');
 const { decodeJWT, resolvePermissions } = require('/opt/permissionLayer');
+const { PutObjectCommand } = require('@aws-sdk/client-s3');
 
-const bucket = process.env.BUCKET_NAME || 'parks-dup-assets-tools';
+const bucket = process.env.S3_BUCKET_DATA || 'parks-dup-assets-tools';
 const IS_OFFLINE =
   process.env.IS_OFFLINE && process.env.IS_OFFLINE === "true" ? true : false;
 const EXPIRY_TIME = process.env.EXPORT_EXPIRY_TIME
@@ -12,23 +13,26 @@ const EXPIRY_TIME = process.env.EXPORT_EXPIRY_TIME
 exports.handler = async (event, context) => {
   logger.debug('Export Pass', event);
   logger.debug('event.queryStringParameters', event.queryStringParameters);
-  
-  if (event?.httpMethod === 'OPTIONS') {
-    return sendResponse(200, {}, context);
-  }
 
   let queryObj = {
     TableName: process.env.TABLE_NAME
   };
 
+  if (checkWarmup(event)) {
+    return sendResponse(200, {}, context);
+  }
+
   try {
+    
     if (!event.queryStringParameters) {
       logger.info("Invalid Request");
       return sendResponse(400, { msg: 'Invalid Request' }, context);
     }
     if (event.queryStringParameters.facilityName && event.queryStringParameters.park) {
 
+      console.log("In the export pass function about to decode token")
       const token = await decodeJWT(event);
+      console.log("Export pass token decoded == ", token)
       const permissionObject = resolvePermissions(token);
       if (permissionObject.isAdmin !== true) {
         logger.info("Unauthorized");
@@ -43,7 +47,7 @@ exports.handler = async (event, context) => {
 
       // Filter Date
       if (event.queryStringParameters.date) {
-        queryObj.ExpressionAttributeValues[':theDate'] = event.queryStringParameters.date;
+        queryObj.ExpressionAttributeValues[':theDate'] = {S: event.queryStringParameters.date };
         queryObj.FilterExpression += ' AND shortPassDate =:theDate';
       }
       // Filter Multiple Statuses
@@ -114,20 +118,21 @@ exports.handler = async (event, context) => {
         Key: key,
         Body: csvData
       }
-      let res = null;
+
       try {
         // Upload file
         logger.info("Uploading to S3");
-        res = await // The `.promise()` call might be on an JS SDK v2 client API.
-        // If yes, please remove .promise(). If not, remove this comment.
-        s3.putObject(params)
+
+        const command = new PutObjectCommand(params)
+        const res = await s3Client.send(command)
+        console.log("Res from s3PUT", res)
 
         // Generate URL.
         logger.info("Generating Signed URL");
         let URL = "";
         if (!IS_OFFLINE) {
           logger.debug('S3_BUCKET_DATA:', bucket);
-          logger.debug('Url key:', urlKey);
+          logger.debug('Url key:', key);
           let command = new GetObjectCommand({
             Bucket: bucket,
             Key: key,

@@ -222,6 +222,7 @@ async function handleCommitPass(newObject, isAdmin) {
   // Send to GC Notify
   try {
     logger.info('Posting to GC Notify');
+    console.log("About to send this templateSQS: ")
     await sendTemplateSQS(facilityData.type, personalization, pass);
   } catch (err) {
     logger.info(
@@ -415,6 +416,7 @@ async function handleHoldPass(newObject, isAdmin) {
     //Send message to expiration queue
     try {
       logger.info('Posting to expirationQueue');
+      console.log("About to send this expirationsqs!: ")
       await sendExpirationSQS();  
     } catch (err) {
       logger.info(`Error with the ExpirationSQS`);

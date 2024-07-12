@@ -13,6 +13,10 @@ const { runQuery,
 const { DateTime } = require('luxon');
 const IS_OFFLINE = require('/opt/baseLayer');
 
+//TODO PUT THIS IN AWS
+const sqsExpiryQueueURL = "https://sqs.ca-central-1.amazonaws.com/039380614566/expiry-queue-sam"
+const gcNotifyQueue = 'https://sqs.ca-central-1.amazonaws.com/039380614566/gcn-email-queue-sam'
+
 // default opening/closing hours in 24h time
 // const options = {
 //   region: process.env.AWS_REGION || 'ca-central-1'
@@ -42,7 +46,7 @@ async function sendTemplateSQS(facilityType, personalisation, passObject) {
   }
   // Push this email job onto the queue so we can return quickly to the front-end
 const params = {
-  QueueUrl: process.env.SQSQUEUENAME,
+  QueueUrl: gcNotifyQueue,
   MessageAttributes: {
     "email_address": {
       DataType: "String",
@@ -58,6 +62,7 @@ const params = {
     },
   }
 }
+  console.log("Sending message in templateSQS!")
   const command = new SendMessageCommand(params)
   logger.info('Sending to SQS');
   data = await sqsClient.send(command);
@@ -72,21 +77,22 @@ const params = {
 };
 
 async function sendExpirationSQS(){
-  logger.info("SQS QUEUE: ", process.env.SQSEXPIRY_QUEUE)
+  logger.info("SQS QUEUE: ", sqsExpiryQueueURL)
   try {
     const params = {
       MessageBody: `SQS Message at ${(new Date()).toISOString()}`,
-      QueueUrl: process.env.SQSEXPIRY_QUEUE,
+      QueueUrl: sqsExpiryQueueURL,
     };
     logger.info("Sending expiry SQS");
-    //remove promises? 
     if (process.env.IS_OFFLINE === 'true'){
-      //No sqs for local
+      //If your local you probably dont have SQS
       return
     }
+    console.log("Sending message in expiry!: ", params)
     const command = new SendMessageCommand(params);
+    console.log("Command for send sqs: ", command)
     const data = await sqsClient.send(command);
-    logger.info("Expiry SQS Sent: ", data)
+    logger.info("Expiry SQS Sent: ", data);
   } catch (e) {
     logger.error(e);
   }

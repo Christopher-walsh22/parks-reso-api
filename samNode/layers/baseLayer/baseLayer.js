@@ -22,16 +22,16 @@ const TABLE_NAME = process.env.TABLE_NAME || 'ParksDUP';
 const META_TABLE_NAME = process.env.META_TABLE_NAME || 'ParksMetaDUP';
 const METRICS_TABLE_NAME = process.env.METRICS_TABLE_NAME || 'ParksMetricsDUP';
 const AWSREGION = process.env.AWSREGION || "ca-central-1";
-const DYNAMODB_ENDPOINT_URL = process.env.DYNAMODB_ENDPOINT_URL || "http://172.17.0.2:8000"
+const DYNAMODB_ENDPOINT_URL = process.env.DYNAMODB_ENDPOINT_URL || "https://dynamodb.ca-central-1.amazonaws.com"
 const options = {
   region: AWSREGION,
   endpoint: DYNAMODB_ENDPOINT_URL
 };
 const IS_OFFLINE = process.env.IS_OFFLINE || false
-if (IS_OFFLINE) {
-  // If offline point at local
-  options.endpoint = 'http://172.17.0.2:8000';
-}
+// if (IS_OFFLINE === true) {
+//   // If offline point at local
+//   options.endpoint = 'http://172.17.0.2:8000';
+// } 
 
 const ACTIVE_STATUS = 'active';
 const RESERVED_STATUS = 'reserved';
@@ -131,7 +131,7 @@ async function runQuery(query, paginated = false) {
   do {
     page++;
     if (pageData?.LastEvaluatedKey) {
-      query.ExclusiveStartKey = pageData.LastEvaluatedKey;
+      command.input.ExclusiveStartKey = pageData.LastEvaluatedKey;
     }
     pageData = await dynamoClient.send(command);
     data = data.concat(
@@ -537,6 +537,16 @@ async function getAllStoredJWTs(expired = false) { //optional if expired or all 
 async function restoreAvailablePass(pk, sk, orcNumber, shortPassDate, facilityName, numberOfGuests, type, passPk, passSk){
   try{
     // Add the number of guests back to the available passes, and delete the reservation jwt.
+
+    console.log("PK PASS IN", pk)
+    console.log("SK PASS IN", sk)
+    console.log("orcNumber PASS IN", orcNumber)
+    console.log("shortPassDate PASS IN", shortPassDate)
+    console.log("facilityName PASS IN", facilityName)
+    console.log("numberOfGuests PASS IN", numberOfGuests)
+    console.log("type PASS IN", type)
+    console.log("passPK PASS IN", passPk)
+    console.log("passSK PASS IN", passSk)
     const transactionParams = {
       TransactItems: [{
         Update: {
@@ -576,10 +586,13 @@ async function restoreAvailablePass(pk, sk, orcNumber, shortPassDate, facilityNa
           }
         }]
     };
-    const command = new TransactWriteCommand(transactionParams)
+    console.log("PARAMS FOR THE TRANSACTIONL:::::::: ", JSON.stringify(transactionParams, 3, 0))
+    const command = new TransactWriteItemsCommand(transactionParams)
+    console.log("Command about to be send to dynamoClient In restore passes", command)
     res = dynamoClient.send(command);
     logger.info(`added: ${numberOfGuests} back to ${facilityName}`);
   } catch (error) {
+    console.log("Res from failing delete: ", res)
     logger.error('Error updating available passes:', error);
     throw new CustomError('Error updating pass', error);
   }
@@ -607,7 +620,7 @@ const sendResponse = function (code, data, context) {
  * @returns {boolean} - True if the event is a warmup event, false otherwise.
  */
 const checkWarmup = function (event) {
-  if (event?.warmup === true) {
+  if (event?.warmup === true || event.httpMethod === 'OPTIONS') {
     return true;
   } else {
     return false;
@@ -645,9 +658,8 @@ const logger = createLogger({
 // const unmarshall = AWS.DynamoDB.Converter.unmarshall
 // const marshall = AWS.DynamoDB.Converter.marshall
 // const AWSinput = AWS.DynamoDB.Converter.input
-const sqsClient = new SQSClient(options)
-const s3Client = new S3Client(options);
-const s3 = new S3(options);
+const sqsClient = new SQSClient({region: AWSREGION})
+const s3Client = new S3Client({region: AWSREGION});
 const lambda = new Lambda(options);
 const invoke = lambda.invoke
 module.exports = {
@@ -697,7 +709,6 @@ module.exports = {
   SendMessageCommand,
   unmarshall,
   marshall,
-  s3,
   s3Client,
   getSignedUrl,
   GetObjectCommand,
