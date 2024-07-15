@@ -2,7 +2,7 @@
 const jwt = require('jsonwebtoken');
 const { DateTime } = require('luxon');
 
-const { dynamoClient, runQuery, TABLE_NAME, TIMEZONE, logger, sendResponse, TransactWriteItemsCommand } = require('/opt/baseLayer');
+const { dynamoClient, runQuery, TABLE_NAME, TIMEZONE, logger, sendResponse, PASS_HOLD_STATUS, PASS_CANCELLED_STATUS, TransactWriteItemsCommand } = require('/opt/baseLayer');
 const { decodeJWT, resolvePermissions } = require('/opt/permissionLayer');
 const ALGORITHM = process.env.ALGORITHM || "HS384";
 
@@ -57,7 +57,7 @@ exports.handler = async (event, context) => {
           sk: { S: decodedToken.passId }
         },
         ExpressionAttributeValues: {
-          ':cancelled': { S: 'cancelled' },
+          ':cancelled': { S: PASS_CANCELLED_STATUS },
           ':dateUpdated': { S: currentTimeISO },
           ':empty_list': { "L": [] },  // For pass objects which do not have an audit property.
           ':audit_val': {
@@ -68,7 +68,7 @@ exports.handler = async (event, context) => {
                     "S": "public"
                   },
                   "passStatus": {
-                    "S": 'cancelled'
+                    "S": PASS_CANCELLED_STATUS
                   }
                   ,
                   "dateUpdated": {
@@ -81,7 +81,7 @@ exports.handler = async (event, context) => {
         },
         // If the pass is already cancelled, error so that we don't decrement the available
         // count multiple times.
-        ConditionExpression: 'attribute_exists(pk) AND attribute_exists(sk) AND (NOT passStatus = :cancelled)',
+        ConditionExpression: 'attribute_exists(pk) AND attribute_exists(sk) AND (NOT passStatus = :cancelled) AND (NOT passStatus = :holdStatus)',
         UpdateExpression: 'SET passStatus = :cancelled, audit = list_append(if_not_exists(audit, :empty_list), :audit_val), dateUpdated = :dateUpdated',
         TableName: TABLE_NAME
       };

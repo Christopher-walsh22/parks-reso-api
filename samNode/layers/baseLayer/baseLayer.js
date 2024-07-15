@@ -36,6 +36,7 @@ const IS_OFFLINE = process.env.IS_OFFLINE || false
 const ACTIVE_STATUS = 'active';
 const RESERVED_STATUS = 'reserved';
 const PASS_HOLD_STATUS = 'hold';
+PASS_CANCELLED_STATUS = 'cancelled'
 const EXPIRED_STATUS = 'expired';
 const PASS_TYPE_AM = 'AM';
 const PASS_TYPE_PM = 'PM';
@@ -572,7 +573,8 @@ async function restoreAvailablePass(pk, sk, orcNumber, shortPassDate, facilityNa
             Key: {
               pk: { S: pk },
               sk: { S: sk }
-            }
+            },
+            ConditionExpression: 'attribute_exists (pk) AND attribute_exists (sk)'
           }
         },
         ,
@@ -582,7 +584,8 @@ async function restoreAvailablePass(pk, sk, orcNumber, shortPassDate, facilityNa
             Key: {
               pk: { S: passPk },
               sk: { S: passSk }
-            }
+            },
+            ConditionExpression: 'attribute_exists (pk) AND attribute_exists (sk)'
           }
         }]
     };
@@ -668,6 +671,7 @@ module.exports = {
   DEFAULT_BOOKING_DAYS_AHEAD,
   PASS_HOLD_STATUS,
   EXPIRED_STATUS,
+  PASS_CANCELLED_STATUS,
   PASS_TYPE_AM,
   PASS_TYPE_PM,
   PASS_TYPE_DAY,
