@@ -223,7 +223,8 @@ async function handleCommitPass(newObject, isAdmin) {
   try {
     logger.info('Posting to GC Notify');
     console.log("About to send this templateSQS: ")
-    await sendTemplateSQS(facilityData.type, personalization, pass);
+    await sendTemplateSQS(facilityData.type, personalization, pass, "GCN");
+    console.log("After the send templateSQS GCnotify ")
   } catch (err) {
     logger.info(
       `Sending SQS msg error, return 200 anyway. Registration number: ${JSON.stringify(

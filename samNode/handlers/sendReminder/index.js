@@ -24,9 +24,14 @@ const PASS_SHORTDATE_INDEX = process.env.PASS_SHORTDATE_INDEX || 'shortPassDate-
 
 exports.handler = async (event, context) => {
   logger.debug('Send Reminder Emails', event);
-
+  gcNotifySendEmails = process.env.GC_NOTIFY_IS_SENDING_REMINDERS
+  console.log("VAR WITH THE VALUE = ", gcNotifySendEmails)
+  console.log(":ENV VAR FOR IT", process.env.GC_NOTIFY_IS_SENDING_REMINDERS)
+  if(process.env.GC_NOTIFY_IS_SENDING_REMINDERS){
+    console.log("It was true?? so dont hit the other")
+  }
   // environment variables are cast as strings
-  if (process.env.GC_NOTIFY_IS_SENDING_REMINDERS !== 'true') {
+  if (process.env.GC_NOTIFY_IS_SENDING_REMINDERS !== "True") {
     logger.info(`Email reminders are currently disabled.`);
     return sendResponse(200, { msg: `Email reminders are currently disabled.` });
   }

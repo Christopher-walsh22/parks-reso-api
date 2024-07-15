@@ -6,14 +6,14 @@ Description: >
 # More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
 Globals:
   Function:
-    Timeout: 60
+    Timeout: 40
     Environment:
       Variables:
         SSO_ISSUER: !Ref SSOIssuerUrl
         SSO_JWKSURI: !Ref SSOJWKSUri
         IS_OFFLINE: false
         AWSREGION: !Ref AWSDefaultRegion
-        DYNAMODB_ENDPOINT_URL: https://dynamodb.ca-central-1.amazonaws.com
+        DYNAMODB_ENDPOINT_URL: "https://dynamodb.ca-central-1.amazonaws.com"
 
 Parameters:
   Algorithm:
@@ -69,7 +69,7 @@ Parameters:
     Default: 'String'
   GCNotifyIsSendingReminders:
     Type: String
-    Default: 'True'
+    Default: 'true'
   GCNotifyIsSendingSurveys:
     Type: String
     Default: 'NO'
@@ -135,10 +135,10 @@ Parameters:
     Default: 'dev'
   SqsGCNQueueName:
     Type: String
-    Default: 'gcn-email-queue-sam'
+    Default: 'https://sqs.ca-central-1.amazonaws.com/039380614566/gcn-email-queue-sam'
   SqsExpiryQueueName:
     Type: String
-    Default: 'expiry-queue-sam'
+    Default: 'https://sqs.ca-central-1.amazonaws.com/039380614566/expiry-queue-sam'
   TableNameParks:
     Type: String
     Default: 'ParksDUP'
@@ -585,6 +585,15 @@ Resources:
               TableName: !Ref MetaTableName
           - DynamoDBCrudPolicy:
               TableName: !Ref MetricsTableName
+          - SQSSendMessagePolicy:
+              QueueName: !GetAtt SqsExpiryQueue.QueueName
+      Events:
+        sqsExpiryEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt SqsExpiryQueue.Arn
+            
+
 
   ReadConfigFunction:
     Type: AWS::Serverless::Function
@@ -998,6 +1007,11 @@ Resources:
               TableName: !Ref MetaTableName
           - DynamoDBCrudPolicy:
               TableName: !Ref MetricsTableName
+      Events:
+        sqsGcnEmailEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt SqsGcnEmailQueue.Arn
 
   UpdateParkNameFunction:
     Type: AWS::Serverless::Function
@@ -1298,6 +1312,10 @@ Resources:
               TableName: !Ref MetaTableName
           - DynamoDBCrudPolicy:
               TableName: !Ref MetricsTableName
+          - SQSSendMessagePolicy:
+              QueueName: !GetAtt SqsExpiryQueue.QueueName
+          - SQSSendMessagePolicy:
+              QueueName: !GetAtt SqsGcnEmailQueue.QueueName
       Events:
         writePassPost:
           Type: Api
@@ -1317,14 +1335,18 @@ Resources:
             Auth:
               Authorizer: NONE
               OverrideApiAuth: true
-        sqsGCNEmailEvent:
-          Type: SQS
-          Properties:
-            Queue: !GetAtt SqsGcnEmailQueue.Arn
-        sqsEmailExpiryEvent:
-          Type: SQS
-          Properties:
-            Queue: !GetAtt SqsGcnEmailQueue.Arn
+        # sqsGCNEmailEvent:
+        #   Type: SQS
+        #   Properties:
+        #     Queue: !GetAtt SqsGcnEmailQueue.Arn
+        # sqsExpiryEvent:
+        #   Type: SQS
+        #   Properties:
+        #     Queue: !GetAtt SqsExpiryQueue.Arn
+
+
+
+            
 
   #################
   # DynamoDB Tables
@@ -1510,26 +1532,28 @@ Resources:
     Properties:
       QueueName: !Ref SqsExpiryQueueName
       
+      
   ##############
   # SQS Policies
   ##############
-  SQSPolicy:
-    Type: AWS::SQS::QueuePolicy
-    Properties:
-      PolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Action:
-              - sqs:SendMessage
-            Resource: 
-              - !GetAtt SqsGcnEmailQueue.Arn
-              - !GetAtt SqsExpiryQueue.Arn
-            Principal:
-              Service: !Sub 'lambda.${AWS::Region}.amazonaws.com'
-      Queues:
-        - !Ref SqsGcnEmailQueue
-        - !Ref SqsExpiryQueue
+  # SQSPolicy:
+  #   Type: AWS::SQS::QueuePolicy
+  #   Properties:
+  #     PolicyDocument:
+  #       Version: '2012-10-17'
+  #       Statement:
+  #         - Effect: Allow
+  #           Action:
+  #             - SQS:SendMessage
+  #             - SQS:DeleteMessage
+  #           Resource: 
+  #             - !GetAtt SqsGcnEmailQueue.Arn
+  #             - !GetAtt SqsExpiryQueue.Arn
+  #           Principal:
+  #             Service: !Sub 'lambda.${AWS::Region}.amazonaws.com'
+  #     Queues:
+  #       - !Ref SqsGcnEmailQueue
+  #       - !Ref SqsExpiryQueue
 
 Outputs:
   ApiDeployment:

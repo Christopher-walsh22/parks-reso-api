@@ -12,6 +12,7 @@ const { runQuery,
   SendMessageCommand } = require('/opt/baseLayer');
 const { DateTime } = require('luxon');
 const IS_OFFLINE = require('/opt/baseLayer');
+const { ComparisonOperator } = require('@aws-sdk/client-dynamodb');
 
 //TODO PUT THIS IN AWS
 const sqsExpiryQueueURL = "https://sqs.ca-central-1.amazonaws.com/039380614566/expiry-queue-sam"
@@ -32,11 +33,12 @@ const DEFAULT_AM_OPENING_HOUR = 7;
  * @param {object} passObject - The pass object.
  * @returns {object} - The updated pass object.
  */
-async function sendTemplateSQS(facilityType, personalisation, passObject) {
-
-  if(IS_OFFLINE){
-    return passObject
-  }
+async function sendTemplateSQS(facilityType, personalisation, passObject, service) {
+  console.log("In send template sqs Should send email after booking")
+  // if(IS_OFFLINE){
+  //   return passObject
+  // }
+  console.log("After offline check")
   let gcNotifyTemplate;
   // Parking?
   if (facilityType === 'Parking') {
@@ -45,26 +47,22 @@ async function sendTemplateSQS(facilityType, personalisation, passObject) {
     gcNotifyTemplate = process.env.GC_NOTIFY_TRAIL_RECEIPT_TEMPLATE_ID;
   }
   // Push this email job onto the queue so we can return quickly to the front-end
-const params = {
+  console.log("PASS OBJECT", passObject)
+  const params = {
   QueueUrl: gcNotifyQueue,
-  MessageAttributes: {
-    "email_address": {
-      DataType: "String",
-      StringValue: passObject.email_address
-    },
-    "template_id": {
-      DataType: "String",
-      StringValue: gcNotifyTemplate
-    },
-    "personalisation": {
-      DataType: "String",
-      StringValue: JSON.stringify(personalisation)
-    },
+  MessageBody: JSON.stringify({
+    email_address: passObject.email,
+    template_id: gcNotifyTemplate,
+    personalisation: personalisation,
+    service: service
+  })
+
   }
-}
-  console.log("Sending message in templateSQS!")
+
+  console.log("Sending message in templateSQS!", JSON.stringify(params, 0 , 3))
   const command = new SendMessageCommand(params)
   logger.info('Sending to SQS');
+  console.log("about to send this data to sqs: ", command)
   data = await sqsClient.send(command);
   logger.info('Sent: ', data);
 
