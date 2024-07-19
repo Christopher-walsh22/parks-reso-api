@@ -1,7 +1,7 @@
-const { DynamoDBClient, GetItemCommand, PutItemCommand, DeleteItemCommand } = require("@aws-sdk/client-dynamodb");
+const { DynamoDBClient, GetItemCommand, PutItemCommand } = require("@aws-sdk/client-dynamodb");
 const { unmarshall, marshall } = require("@aws-sdk/util-dynamodb");
-const { REGION, ENDPOINT } = require('../../../__tests__/settings');
-const { createDB, deleteDB, getHashedText } = require('../../../__tests__/setup.js')
+const { REGION, ENDPOINT, TIMEZONE } = require('../../__tests__/settings');
+const { createDB, deleteDB, getHashedText } = require('../../__tests__/setup.js')
 const jwt = require('jsonwebtoken');
 const { DateTime } = require('luxon');
 const ALGORITHM = process.env.ALGORITHM || "HS384";
@@ -87,14 +87,15 @@ const token = jwt.sign({ foo: 'bar' }, 'shhhhh', { algorithm: ALGORITHM });
 describe('Read Metrics General', () => {
   const OLD_ENV = process.env.TABLE_NAME;
   let hash
- 
+  let TABLE_NAME
   beforeEach(async () => {
     jest.resetModules();
     hash = getHashedText(expect.getState().currentTestName);
+    hash = hash.length > 200 ? hash.substring(0, 200) : hash;
     process.env.TABLE_NAME = hash
     TABLE_NAME = process.env.TABLE_NAME
     await createDB(hash)
-    await databaseOperation(1, 'setup', process.env.TABLE_NAME);
+    await databaseOperation( TABLE_NAME)
   });
 
   afterEach(async () => {
@@ -212,20 +213,22 @@ describe('Read Metrics General', () => {
 
 let newMetricsList = [];
 describe('Metrics utils general', () => {
-  const OLD_ENV = process.env;
-
+  const OLD_ENV = process.env.TABLE_NAME;
+  let hash
+  let TABLE_NAME
   beforeEach(async () => {
     jest.resetModules();
-    process.env = { ...OLD_ENV }; // Make a copy of environment
-    await databaseOperation(1, 'setup');
+    hash = getHashedText(expect.getState().currentTestName);
+    hash = hash.length > 200 ? hash.substring(0, 200) : hash;
+    process.env.TABLE_NAME = hash
+    TABLE_NAME = process.env.TABLE_NAME
+    await createDB(hash)
+    await databaseOperation( TABLE_NAME)
   });
 
   afterEach(async () => {
-    await databaseOperation(1, 'teardown');
-  });
-
-  afterAll(() => {
-    process.env = OLD_ENV; // Restore old environment
+    await deleteDB(process.env.TABLE_NAME);
+    process.env.TABLE_NAME = OLD_ENV; // Restore old environment
   });
 
   test('Create metric - today - simple', async () => {
@@ -292,19 +295,25 @@ describe('Metrics utils general', () => {
 
 // create new describe to ensure it runs after the previous describe block
 describe('Metrics post', () => {
-  const OLD_ENV = process.env;
-
+  const OLD_ENV = process.env.TABLE_NAME;
+  let hash
+ 
   beforeEach(async () => {
     jest.resetModules();
-    process.env = { ...OLD_ENV }; // Make a copy of environment
-    // be cheeky and store the stuff in the same table instead of a new one
-    process.env.METRICS_TABLE_NAME = TABLE_NAME;
-    await databaseOperation(1, 'setup');
+    hash = getHashedText(expect.getState().currentTestName);
+    hash = hash.length > 200 ? hash.substring(0, 200) : hash;
+    hash = hash.replace(/[^\w\-\.]/g, '');
+    process.env.TABLE_NAME = hash
+    TABLE_NAME = process.env.TABLE_NAME
+    await createDB(hash)
+    await databaseOperation(1, 'setup', process.env.TABLE_NAME);
   });
 
   afterEach(async () => {
-    await databaseOperation(1, 'teardown');
+    await deleteDB(process.env.TABLE_NAME);
+    process.env.TABLE_NAME = OLD_ENV; // Restore old environment
   });
+  
 
   afterAll(() => {
     process.env = OLD_ENV; // Restore old environment
@@ -317,35 +326,39 @@ describe('Metrics post', () => {
     expect(res).toEqual(3);
     const dates = [today, tomorrow, yesterday];
     for (const date of dates) {
-      const check = await ddb.get({
+      const params = {
         TableName: TABLE_NAME,
-        Key: {
+        Key: marshall({
           pk: `metrics::Test Park::Test Facility`,
           sk: date.toISODate()
-        }
-      }).promise();
+        })
+      }
+
+      const res = await dynamoClient.send(new GetItemCommand(params))
+      const check = unmarshall(res.Item);
       // expect metric item to exist in db
-      expect(check.Item).toBeTruthy();
+      expect(check).toBeTruthy();
     }
   })
 })
 
-async function databaseOperation(version, mode) {
-  if (version === 1) {
-    if (mode === 'setup') {
-      await ddb.put({
-        TableName: TABLE_NAME,
-        Item: mockPark
-      }).promise();
+async function databaseOperation(TABLE_NAME) {
+  
+      const dynamoClient = new DynamoDBClient({
+        region: REGION,
+        endpoint: ENDPOINT
+      });
 
-      await ddb.put({
+      const params = {
         TableName: TABLE_NAME,
-        Item: mockFacility
-      }).promise();
+        Item: marshall(mockPark)
+      }
+      console.log("TABLE NAME::: ", TABLE_NAME)
+      await dynamoClient.send(new PutItemCommand(params))
 
-      await ddb.put({
+      const params2 = {
         TableName: TABLE_NAME,
-        Item: {
+        Item: marshall({
           pk: 'reservations::Test Park::Test Facility',
           sk: today.toISODate(),
           capacities: {
@@ -356,12 +369,13 @@ async function databaseOperation(version, mode) {
               overbooked: 0
             }
           }
-        }
-      }).promise();
-
-      await ddb.put({
+        })
+      }
+      await dynamoClient.send(new PutItemCommand(params2))
+      
+      const params3 = {
         TableName: TABLE_NAME,
-        Item: {
+        Item: marshall({
           pk: 'reservations::Test Park::Test Facility',
           sk: tomorrow.toISODate(),
           capacities: {
@@ -372,12 +386,13 @@ async function databaseOperation(version, mode) {
               overbooked: 1
             }
           }
-        }
-      }).promise();
+        })
+      }
+      await dynamoClient.send(new PutItemCommand(params3))
 
-      await ddb.put({
+      const params4 = {
         TableName: TABLE_NAME,
-        Item: {
+        Item: marshall({
           pk: 'reservations::Test Park::Test Facility',
           sk: yesterday.toISODate(),
           capacities: {
@@ -388,12 +403,14 @@ async function databaseOperation(version, mode) {
               overbooked: 0
             }
           }
-        }
-      }).promise();
+        })
+      }
 
-      await ddb.put({
+      await dynamoClient.send(new PutItemCommand(params4))
+      
+      const params5 = {
         TableName: TABLE_NAME,
-        Item: {
+        Item: marshall({
           pk: 'pass::Test Park',
           sk: '1',
           checkedIn: true,
@@ -403,12 +420,13 @@ async function databaseOperation(version, mode) {
           facilityName: 'Test Facility',
           numberOfGuests: 1,
           type: 'DAY'
-        }
-      }).promise();
+        })
+      }
+      await dynamoClient.send(new PutItemCommand(params5))
 
-      await ddb.put({
+      const params6 = {
         TableName: TABLE_NAME,
-        Item: {
+        Item: marshall({
           pk: 'pass::Test Park',
           sk: '2',
           checkedIn: false,
@@ -417,12 +435,13 @@ async function databaseOperation(version, mode) {
           facilityName: 'Test Facility',
           numberOfGuests: 4,
           type: 'DAY'
-        }
-      }).promise();
+        })
+      }
+      await dynamoClient.send(new PutItemCommand(params6))
 
-      await ddb.put({
+      const params7 = {
         TableName: TABLE_NAME,
-        Item: {
+        Item: marshall({
           pk: 'pass::Test Park',
           sk: '3',
           checkedIn: false,
@@ -432,12 +451,13 @@ async function databaseOperation(version, mode) {
           numberOfGuests: 1,
           type: 'DAY',
           isOverbooked: true
-        }
-      }).promise();
+        })
+      }
+      await dynamoClient.send(new PutItemCommand(params7))
 
-      await ddb.put({
+      const params8 = {
         TableName: TABLE_NAME,
-        Item: {
+        Item: marshall({
           pk: 'pass::Test Park',
           sk: '4',
           checkedIn: true,
@@ -447,12 +467,13 @@ async function databaseOperation(version, mode) {
           facilityName: 'Test Facility',
           numberOfGuests: 1,
           type: 'DAY',
-        }
-      }).promise();
-
-      await ddb.put({
+        })
+      }
+      await dynamoClient.send(new PutItemCommand(params8))
+      
+      const params9 = {
         TableName: TABLE_NAME,
-        Item: {
+        Item: marshall({
           pk: 'pass::Test Park',
           sk: '5',
           passStatus: 'cancelled',
@@ -460,39 +481,8 @@ async function databaseOperation(version, mode) {
           facilityName: 'Test Facility',
           numberOfGuests: 1,
           type: 'DAY',
-        }
-      }).promise();
-
-    } else {
-      // Teardown
-
-      const pkskList = [
-        { pk: 'park', sk: 'Test Park' },
-        { pk: 'facility::Test Park', sk: 'Test Facility' },
-        { pk: 'reservations::Test Park::Test Facility', sk: today.toISODate() },
-        { pk: 'reservations::Test Park::Test Facility', sk: tomorrow.toISODate() },
-        { pk: 'reservations::Test Park::Test Facility', sk: yesterday.toISODate() },
-        { pk: 'pass::Test Park', sk: '1' },
-        { pk: 'pass::Test Park', sk: '2' },
-        { pk: 'pass::Test Park', sk: '3' },
-        { pk: 'pass::Test Park', sk: '4' },
-        { pk: 'pass::Test Park', sk: '5' },
-        { pk: 'metrics::Test Park::Test Facility', sk: today.toISODate() },
-        { pk: 'metrics::Test Park::Test Facility', sk: tomorrow.toISODate() },
-        { pk: 'metrics::Test Park::Test Facility', sk: yesterday.toISODate() },
-      ]
-
-      for (const item of pkskList) {
-        await ddb
-          .delete({
-            TableName: TABLE_NAME,
-            Key: {
-              pk: item.pk,
-              sk: item.sk
-            }
-          })
-          .promise();
+        })
       }
+      await dynamoClient.send(new PutItemCommand(params9))
+
     }
-  }
-}
