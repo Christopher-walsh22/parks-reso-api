@@ -32,7 +32,6 @@ exports.handler = async (event, context) => {
       return sendResponse(400, { msg: 'Invalid Request: Missing query parameters.' });
     }
 
-
     const park = event.queryStringParameters.park
     const facility = event.queryStringParameters.facility
     const startDate = event.queryStringParameters.startDate

@@ -1,4 +1,4 @@
-const { gcnSend } = require('/opt/gcNotifyLayer');
+const { gcnSend } = require('/opt/gcNotifyLayer'); 
 const { sendResponse, logger } = require('/opt/baseLayer');
 
 

@@ -1,8 +1,11 @@
-const AWS = require('aws-sdk');
-const { DocumentClient } = require('aws-sdk/clients/dynamodb');
+
 const jwt = require('jsonwebtoken');
 
-const { REGION, ENDPOINT, TABLE_NAME } = require('../../../__tests__/settings');
+const { REGION, ENDPOINT } = require('../../../__tests__/settings');
+const { createDB, deleteDB, getHashedText } = require('../../../__tests__/setup.js');
+const { DynamoDBClient, GetItemCommand, PutItemCommand } = require("@aws-sdk/client-dynamodb");
+const { marshall, unmarshall } = require('@aws-sdk/util-dynamodb');
+
 
 const pass1 = {
   pk: 'pass::0016',
@@ -28,11 +31,11 @@ const pass1 = {
   dateUpdated: new Date('2012-01-01').toISOString(),
 };
 
-const ddb = new DocumentClient({
-  region: REGION,
-  endpoint: ENDPOINT,
-  convertEmptyValues: true
-});
+// const dynamoClient = new DynamoDBClient({
+//   region: REGION,
+//   endpoint: ENDPOINT
+// });
+
 const ALGORITHM = process.env.ALGORITHM || "HS384";
 const token = jwt.sign({ foo: 'bar' }, 'shhhhh', { algorithm: ALGORITHM });
 
@@ -40,16 +43,21 @@ describe('Read Pass', () => {
   const OLD_ENV = process.env;
   beforeEach(async () => {
     jest.resetModules();
-    process.env = { ...OLD_ENV }; // Make a copy of environment
+    hash = getHashedText(expect.getState().currentTestName);
+    process.env.TABLE_NAME = hash
+    TABLE_NAME = process.env.TABLE_NAME
+    await createDB(hash)
     await databaseOperation(2, 'setup');
   });
 
-  afterAll(() => {
+  afterAll(async () => {
     process.env = OLD_ENV; // Restore old environment
   });
 
   afterEach(async () => {
     await databaseOperation(2, 'teardown');
+    await deleteDB(process.env.TABLE_NAME);
+    process.env = OLD_ENV; // Restore old environment
   });
 
   test('ReadPass Handler - 400 Bad Request - nothing passed in', async () => {
@@ -209,188 +217,196 @@ describe('Read Pass', () => {
     };
 
     const response = await handler.handler(event, null);
-    const body = JSON.parse(response.body)[0];
-    expect(body.email).toEqual(pass1.email);
-    expect(body.registrationNumber).toEqual(pass1.registrationNumber);
-    expect(body.firstName).toEqual(pass1.firstName);
-    expect(body.lastName).toEqual(pass1.lastName);
-    expect(body.facilityName).toEqual(pass1.facilityName);
-    expect(body.park).toEqual(pass1.park);
-    expect(body.date).toEqual(pass1.date);
+    const parsedBody = JSON.parse(response.body);
+    
+    expect(parsedBody[0].email).toEqual(pass1.email);
+    expect(parsedBody[0].registrationNumber).toEqual(pass1.registrationNumber);
+    expect(parsedBody[0].firstName).toEqual(pass1.firstName);
+    expect(parsedBody[0].lastName).toEqual(pass1.lastName);
+    expect(parsedBody[0].facilityName).toEqual(pass1.facilityName);
+    expect(parsedBody[0].park).toEqual(pass1.park);
+    expect(parsedBody[0].date).toEqual(pass1.date);
   });
 });
 
 async function databaseOperation(version, mode) {
   if (version === 2) {
     if (mode === 'setup') {
-      await ddb
-        .put({
-          TableName: TABLE_NAME,
-          Item: {
-            pk: 'park',
-            sk: 'Test Park 2',
-            name: 'Test Park 2',
-            description: '<p>My Description</p>',
-            bcParksLink: 'http://google.ca',
-            mapLink: 'https://maps.google.com',
-            status: 'open',
-            visible: true
-          }
-        })
-        .promise();
+      const dynamoClient = new DynamoDBClient({
+        region: REGION,
+        endpoint: ENDPOINT
+      });
 
-      await ddb
-        .put({
+      const params = {
           TableName: TABLE_NAME,
           Item: {
-            pk: 'park',
-            sk: '0016',
-            name: '0016',
-            description: '<p>My Description</p>',
-            bcParksLink: 'http://google.ca',
-            mapLink: 'https://maps.google.com',
-            status: 'open',
-            visible: true
+            pk: {S: 'park'},
+            sk: {S:'Test Park 2'},
+            name: {S: 'Test Park 2'},
+            description: {S: '<p>My Description</p>'},
+            bcParksLink: {S: 'http://google.ca'},
+            mapLink: {S: 'https://maps.google.com'},
+            status: {S: 'open'},
+            visible: {BOOL: true}
           }
-        })
-        .promise();
+        }
+
+      await dynamoClient.send(new PutItemCommand(params));
+      
+      const params2 = {
+          TableName: TABLE_NAME,
+          Item: {
+            pk: {S: 'park'},
+            sk: {S: '0016'},
+            name: {S: '0016'},
+            description: {S: '<p>My Description</p>'},
+            bcParksLink: {S: 'http://google.ca'},
+            mapLink: {S: 'https://maps.google.com'},
+            status: {S: 'open'},
+            visible: {BOOL: true}
+          }
+        }
+        await dynamoClient.send(new PutItemCommand(params2))
 
       // Example Pass
-      await ddb
-        .put({
+      const params3 = {
           TableName: TABLE_NAME,
-          Item: pass1
-        })
-        .promise();
+          Item: marshall(pass1)
+        }
+      await dynamoClient.send(new PutItemCommand(params3))
 
-      await ddb
-        .put({
+      const params4 = {
           TableName: TABLE_NAME,
           Item: {
-            pk: 'facility::Test Park 2',
-            sk: 'Parking lot A',
-            name: 'Parking lot A',
-            description: 'A Parking Lot!',
-            isUpdating: false,
-            type: "Parking",
+            pk: { S: 'facility::Test Park 2' },
+            sk: { S: 'Parking lot A' },
+            name: { S: 'Parking lot A' },
+            description: { S: 'A Parking Lot!' },
+            isUpdating: { BOOL: false },
+            type: { S: "Parking" },
             bookingTimes: {
-              AM: {
-                max: 25
-              },
-              DAY: {
-                max: 25
+              M: {
+                AM: {
+                  M: { max: { N: '25' } }
+                },
+                DAY: {
+                  M: { max: { N: '25' } }
+                }
               }
             },
             bookingDays: {
-              "Sunday": true,
-              "Monday": true,
-              "Tuesday": true,
-              "Wednesday": true,
-              "Thursday": true,
-              "Friday": true,
-              "Saturday": true
+              M: {
+                "Sunday": { BOOL: true },
+                "Monday": { BOOL: true },
+                "Tuesday": { BOOL: true },
+                "Wednesday": { BOOL: true },
+                "Thursday": { BOOL: true },
+                "Friday": { BOOL: true },
+                "Saturday": { BOOL: true }
+              }
             },
-            bookingDaysRichText: '',
-            bookableHolidays: [],
-            status: { stateReason: '', state: 'open' },
-            qrcode: true,
-            visible: true
+            bookingDaysRichText: { S: '' },
+            bookableHolidays: { L: [] },
+            status: {
+              M: {
+                stateReason: { S: '' },
+                state: { S: 'open' }
+              }
+            },
+            qrcode: { BOOL: true },
+            visible: { BOOL: true }
           }
-        })
-        .promise();
+        }
+      await dynamoClient.send(new PutItemCommand(params4));
 
-      await ddb
-        .put({
+      const params5 = {
           TableName: TABLE_NAME,
           Item: {
-            pk: 'facility::Test Park 2',
-            sk: 'Trail B',
-            name: 'Trail B',
-            description: 'A Trail!',
-            qrcode: true,
-            isUpdating: false,
-            type: "Trail",
+            pk: { S: 'facility::Test Park 2' },
+            sk: { S: 'Trail B' },
+            name: { S: 'Trail B' },
+            description: { S: 'A Trail!' },
+            qrcode: { BOOL: true },
+            isUpdating: { BOOL: false },
+            type: { S: "Trail" },
             bookingTimes: {
-              AM: {
-                max: 25
-              },
-              DAY: {
-                max: 25
+              M: {
+                AM: {
+                  M: { max: { N: '25' } }
+                },
+                DAY: {
+                  M: { max: { N: '25' } }
+                }
               }
             },
             bookingDays: {
-              "Sunday": true,
-              "Monday": true,
-              "Tuesday": true,
-              "Wednesday": true,
-              "Thursday": true,
-              "Friday": true,
-              "Saturday": true
+              M: {
+                "Sunday": { BOOL: true },
+                "Monday": { BOOL: true },
+                "Tuesday": { BOOL: true },
+                "Wednesday": { BOOL: true },
+                "Thursday": { BOOL: true },
+                "Friday": { BOOL: true },
+                "Saturday": { BOOL: true }
+              }
             },
-            bookingDaysRichText: '',
-            bookableHolidays: [],
-            status: { stateReason: '', state: 'open' },
-            visible: true
+            bookingDaysRichText: { S: '' },
+            bookableHolidays: { L: [] },
+            status: {
+              M: {
+                stateReason: { S: '' },
+                state: { S: 'open' }
+              }
+            },
+            visible: { BOOL: true }
           }
-        })
-        .promise();
+        }
+      await dynamoClient.send(new PutItemCommand(params5))
 
-      await ddb
-        .put({
+      const params6 = {
           TableName: TABLE_NAME,
           Item: {
-            pk: 'facility::0016',
-            sk: 'P1 and Lower P5',
-            name: 'P1 and Lower P5',
-            description: 'A Trail!',
-            qrcode: true,
-            isUpdating: false,
-            type: "Trail",
+            pk: { S: 'facility::0016' },
+            sk: { S: 'P1 and Lower P5' },
+            name: { S: 'P1 and Lower P5' },
+            description: { S: 'A Trail!' },
+            qrcode: { BOOL: true },
+            isUpdating: { BOOL: false },
+            type: { S: "Trail" },
             bookingTimes: {
-              AM: {
-                max: 25
-              },
-              DAY: {
-                max: 25
+              M: {
+                AM: {
+                  M: { max: { N: '25' } }
+                },
+                DAY: {
+                  M: { max: { N: '25' } }
+                }
               }
             },
             bookingDays: {
-              "Sunday": true,
-              "Monday": true,
-              "Tuesday": true,
-              "Wednesday": true,
-              "Thursday": true,
-              "Friday": true,
-              "Saturday": true
+              M: {
+                "Sunday": { BOOL: true },
+                "Monday": { BOOL: true },
+                "Tuesday": { BOOL: true },
+                "Wednesday": { BOOL: true },
+                "Thursday": { BOOL: true },
+                "Friday": { BOOL: true },
+                "Saturday": { BOOL: true }
+              }
             },
-            bookingDaysRichText: '',
-            bookableHolidays: [],
-            status: { stateReason: '', state: 'open' },
-            visible: true
+            bookingDaysRichText: { S: '' },
+            bookableHolidays: { L: [] },
+            status: {
+              M: {
+                stateReason: { S: '' },
+                state: { S: 'open' }
+              }
+            },
+            visible: { BOOL: true }
           }
-        })
-        .promise();
-    } else {
-      console.log('Teardown');
-      // Teardown
-      await ddb
-        .delete({
-          TableName: TABLE_NAME,
-          Key: {
-            pk: 'park',
-            sk: 'Test Park 2'
-          }
-        })
-        .promise();
-      await ddb
-        .delete({
-          TableName: TABLE_NAME,
-          Key: {
-            pk: 'facility::Test Park 2',
-            sk: 'Parking lot A'
-          }
-        })
-        .promise();
-    }
+        }
+        await dynamoClient.send(new PutItemCommand(params6))
+    } 
+    
   }
 }

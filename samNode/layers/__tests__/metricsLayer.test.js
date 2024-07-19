@@ -1,6 +1,7 @@
-const AWS = require('aws-sdk');
-const { DocumentClient } = require('aws-sdk/clients/dynamodb');
-const { REGION, ENDPOINT, TABLE_NAME, TIMEZONE } = require('../../__tests__/settings');
+const { DynamoDBClient, GetItemCommand, PutItemCommand, DeleteItemCommand } = require("@aws-sdk/client-dynamodb");
+const { unmarshall, marshall } = require("@aws-sdk/util-dynamodb");
+const { REGION, ENDPOINT } = require('../../../__tests__/settings');
+const { createDB, deleteDB, getHashedText } = require('../../../__tests__/setup.js')
 const jwt = require('jsonwebtoken');
 const { DateTime } = require('luxon');
 const ALGORITHM = process.env.ALGORITHM || "HS384";
@@ -9,11 +10,6 @@ const today = DateTime.now().setZone(TIMEZONE);
 const tomorrow = today.plus({ days: 1 });
 const yesterday = today.minus({ days: 1 });
 
-const ddb = new DocumentClient({
-  region: REGION,
-  endpoint: ENDPOINT,
-  convertEmptyValues: true
-});
 
 const mockedSysadmin = {
   decodeJWT: jest.fn((event) => {
@@ -89,18 +85,21 @@ const mockFacility = {
 const token = jwt.sign({ foo: 'bar' }, 'shhhhh', { algorithm: ALGORITHM });
 
 describe('Read Metrics General', () => {
-  const OLD_ENV = process.env;
-
+  const OLD_ENV = process.env.TABLE_NAME;
+  let hash
+ 
   beforeEach(async () => {
     jest.resetModules();
-    process.env = { ...OLD_ENV }; // Make a copy of environment
+    hash = getHashedText(expect.getState().currentTestName);
+    process.env.TABLE_NAME = hash
+    TABLE_NAME = process.env.TABLE_NAME
+    await createDB(hash)
+    await databaseOperation(1, 'setup', process.env.TABLE_NAME);
   });
 
   afterEach(async () => {
-  });
-
-  afterAll(() => {
-    process.env = OLD_ENV; // Restore old environment
+    await deleteDB(process.env.TABLE_NAME);
+    process.env.TABLE_NAME = OLD_ENV; // Restore old environment
   });
 
   test('Unauthorized', async () => {

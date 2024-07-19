@@ -13,7 +13,7 @@ Globals:
         SSO_JWKSURI: !Ref SSOJWKSUri
         IS_OFFLINE: false
         AWSREGION: !Ref AWSDefaultRegion
-        DYNAMODB_ENDPOINT_URL: "https://dynamodb.ca-central-1.amazonaws.com"
+        DYNAMODB_ENDPOINT_URL: "http://172.17.0.2:8000"
 
 Parameters:
   Algorithm:
@@ -286,19 +286,6 @@ Resources:
       LayerName: smsUtil
       Description: SMS Utilities Layer
       ContentUri: layers/smsLayer/
-      CompatibleRuntimes:
-        - nodejs18.x
-      LicenseInfo: 'Apache-2.0'
-      RetentionPolicy: Retain
-    Metadata:
-      BuildMethod: makefile
-  
-  SQSLayer:
-    Type: AWS::Serverless::LayerVersion
-    Properties:
-      LayerName: sqsLayer
-      Description: SQS Utilities Layer
-      ContentUri: layers/sqsLayer/
       CompatibleRuntimes:
         - nodejs18.x
       LicenseInfo: 'Apache-2.0'

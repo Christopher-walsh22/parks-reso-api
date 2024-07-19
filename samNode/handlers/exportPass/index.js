@@ -4,11 +4,8 @@ const { decodeJWT, resolvePermissions } = require('/opt/permissionLayer');
 const { PutObjectCommand } = require('@aws-sdk/client-s3');
 
 const bucket = process.env.S3_BUCKET_DATA || 'parks-dup-assets-tools';
-const IS_OFFLINE =
-  process.env.IS_OFFLINE && process.env.IS_OFFLINE === "true" ? true : false;
-const EXPIRY_TIME = process.env.EXPORT_EXPIRY_TIME
-  ? Number(process.env.EXPORT_EXPIRY_TIME)
-  : 60 * 15; // 15 minutes
+const IS_OFFLINE = process.env.IS_OFFLINE;
+const EXPIRY_TIME = process.env.EXPORT_EXPIRY_TIME ? Number(process.env.EXPORT_EXPIRY_TIME) : 60 * 15; // 15 minutes
 
 exports.handler = async (event, context) => {
   logger.debug('Export Pass', event);
@@ -23,16 +20,12 @@ exports.handler = async (event, context) => {
   }
 
   try {
-    
     if (!event.queryStringParameters) {
       logger.info("Invalid Request");
       return sendResponse(400, { msg: 'Invalid Request' }, context);
     }
     if (event.queryStringParameters.facilityName && event.queryStringParameters.park) {
-
-      console.log("In the export pass function about to decode token")
       const token = await decodeJWT(event);
-      console.log("Export pass token decoded == ", token)
       const permissionObject = resolvePermissions(token);
       if (permissionObject.isAdmin !== true) {
         logger.info("Unauthorized");
@@ -44,7 +37,6 @@ exports.handler = async (event, context) => {
       queryObj.ExpressionAttributeValues[':facilityName'] = { S: event.queryStringParameters.facilityName };
       queryObj.KeyConditionExpression = 'pk =:pk';
       queryObj.FilterExpression = 'facilityName =:facilityName';
-
       // Filter Date
       if (event.queryStringParameters.date) {
         queryObj.ExpressionAttributeValues[':theDate'] = {S: event.queryStringParameters.date };
@@ -91,7 +83,6 @@ exports.handler = async (event, context) => {
 
       logger.debug('queryObj:', queryObj);
       logger.info("Running Query");
-
       let scanResults = [];
       let passData;
       do {
@@ -120,17 +111,13 @@ exports.handler = async (event, context) => {
       }
 
       try {
-        // Upload file
         logger.info("Uploading to S3");
-
         const command = new PutObjectCommand(params)
         const res = await s3Client.send(command)
-        console.log("Res from s3PUT", res)
-
         // Generate URL.
         logger.info("Generating Signed URL");
         let URL = "";
-        if (!IS_OFFLINE) {
+        if (IS_OFFLINE !== 'True') {
           logger.debug('S3_BUCKET_DATA:', bucket);
           logger.debug('Url key:', key);
           let command = new GetObjectCommand({

@@ -1,5 +1,4 @@
-const { DynamoDBClient, CreateTableCommand, DeleteItemCommand, DeleteTableCommand } = require('@aws-sdk/client-dynamodb');
-const { unmarshall } = require("@aws-sdk/util-dynamodb");
+const { DynamoDBClient, CreateTableCommand, DeleteItemCommand } = require('@aws-sdk/client-dynamodb');
 const crypto = require('crypto');
 const { REGION, ENDPOINT, TABLE_NAME } = require('./settings');
 
@@ -8,6 +7,7 @@ async function createDB(tableName = TABLE_NAME) {
     region: REGION,
     endpoint: ENDPOINT
   });
+  console.log("SETTING UP DB!!!")
   try {
     const params = {
       TableName: tableName,
@@ -156,7 +156,9 @@ async function createDB(tableName = TABLE_NAME) {
     }
 
     const createTable = new CreateTableCommand(params);
-    await dynamoClient.send(createTable)
+    const data = await dynamoClient.send(createTable)  
+    console.log("Created Table:", data)
+    return dynamoClient; 
   } catch (err) {
     console.log(err);
   }
@@ -172,7 +174,7 @@ async function deleteDB(tableName = TABLE_NAME) {
     const param = {
         TableName: tableName
       };
-    await dynamoDb.send(new DeleteTableCommand(param));
+    await dynamoDb.send(new DeleteItemCommand(param));
   } catch (err) {
     console.log(err);
   }
@@ -182,7 +184,7 @@ function getHashedText(text) {
   return crypto.createHash('md5').update(text).digest('hex');
 }
 
-module.exports = {
+moldule.exports = {
     getHashedText,
     deleteDB,
     createDB

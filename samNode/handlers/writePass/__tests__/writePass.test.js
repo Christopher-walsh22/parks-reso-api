@@ -1,29 +1,31 @@
-const { DocumentClient } = require('aws-sdk/clients/dynamodb');
-
-const { REGION, ENDPOINT, TABLE_NAME } = require('../../../__tests__/settings');
-
+const { DynamoDBClient, GetItemCommand, PutItemCommand, DeleteItemCommand } = require("@aws-sdk/client-dynamodb");
+const { unmarshall, marshall } = require("@aws-sdk/util-dynamodb");
+const { REGION, ENDPOINT } = require('../../../__tests__/settings');
+const { createDB, deleteDB, getHashedText } = require('../../../__tests__/setup.js')
 const ALLOWED_HEADERS = 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-App-Version';
-
 const ALGORITHM = process.env.ALGORITHM || 'HS384';
-
-const ddb = new DocumentClient({
-  region: REGION,
-  endpoint: ENDPOINT,
-  convertEmptyValues: true
-});
-
 const jwt = require('jsonwebtoken');
+const { DateTime } = require('luxon');
+
 
 describe('Pass Fails', () => {
+  const OLD_ENV = process.env.TABLE_NAME;
+  let hash
+ 
   beforeEach(async () => {
-    await databaseOperation(1, 'setup');
+    jest.resetModules();
+    hash = getHashedText(expect.getState().currentTestName);
+    process.env.TABLE_NAME = hash
+    TABLE_NAME = process.env.TABLE_NAME
+    await createDB(hash)
+    await databaseOperation(1, 'setup', process.env.TABLE_NAME);
   });
 
   afterEach(async () => {
-    await databaseOperation(1, 'teardown');
-    jest.resetModules();
+    await deleteDB(process.env.TABLE_NAME);
+    process.env.TABLE_NAME = OLD_ENV; // Restore old environment
   });
-
+  
   test('400 Bad Request - nothing passed in', async () => {
     const writePassHandler = require('../index');
     expect(await writePassHandler.handler(null, null)).toMatchObject({
@@ -333,19 +335,20 @@ describe('Pass Fails', () => {
 });
 
 describe('Pass Successes', () => {
-  const OLD_ENV = process.env;
+  const OLD_ENV = process.env.TABLE_NAME;
+  let hash
   beforeEach(async () => {
     jest.resetModules();
-    process.env = { ...OLD_ENV }; // Make a copy of environment
-    await databaseOperation(1, 'setup');
-  });
-
-  afterAll(() => {
-    process.env = OLD_ENV; // Restore old environment
+    hash = getHashedText(expect.getState().currentTestName);
+    process.env.TABLE_NAME = hash
+    TABLE_NAME = process.env.TABLE_NAME
+    await createDB(hash)
+    await databaseOperation(1, 'setup', process.env.TABLE_NAME);
   });
 
   afterEach(async () => {
-    await databaseOperation(1, 'teardown');
+    await deleteDB(process.env.TABLE_NAME);
+    process.env.TABLE_NAME = OLD_ENV; // Restore old environment
   });
 
   test('writePass warmup', async () => {
@@ -359,6 +362,10 @@ describe('Pass Successes', () => {
   });
 
   test('writePass putPassHandler', async () => {
+    const dynamoClient = new DynamoDBClient({
+      region: REGION,
+      endpoint: ENDPOINT
+    });
     const writePassHandler = require('../index').handler;
     jest.mock('/opt/permissionLayer', () => {
       return {
@@ -394,14 +401,14 @@ describe('Pass Successes', () => {
 
     let params = {
       TableName: TABLE_NAME,
-      Key: {
+      Key: marshall({
         pk: 'pass::0015',
         sk: '523456789'
-      }
+      })
     };
-
-    let dbRes = await ddb.get(params).promise();
-    expect(dbRes.Item?.checkedIn).toEqual(true);
+    let res = await dynamoClient.send(new GetItemCommand(params))
+    let dbRes = unmarshall(res.Item);
+    expect(dbRes.checkedIn).toEqual(true);
 
     event = {
       httpMethod: 'PUT',
@@ -420,8 +427,10 @@ describe('Pass Successes', () => {
     response = await writePassHandler(event, context);
     expect(response.statusCode).toEqual(200);
 
-    dbRes = await ddb.get(params).promise();
-    expect(dbRes.Item?.checkedIn).toEqual(false);
+
+    res = await dynamoClient.send(new GetItemCommand(params))
+    dbRes = unmarshall(res.Item);
+    expect(dbRes.checkedIn).toEqual(false);
 
     event = {
       httpMethod: 'PUT',
@@ -476,6 +485,7 @@ describe('Pass Successes', () => {
     process.env.ADMIN_FRONTEND = 'http://localhost:4300';
     process.env.PASS_MANAGEMENT_ROUTE = '/pass-management';
 
+    //THIS IS BROKEN for test ---- Missing 
     const event = {
       headers: {
         Authorization: 'None'
@@ -486,7 +496,7 @@ describe('Pass Successes', () => {
         lastName: 'User',
         facilityName: 'P1 and Lower P5',
         email: 'testEmail7@test.ca',
-        date: new Date(),
+        date: new Date().toISOString(),
         type: 'DAY',
         numberOfGuests: 1,
         phoneNumber: '2505555555'
@@ -508,6 +518,10 @@ describe('Pass Successes', () => {
   });
 
   test('200 pass has been created for a Parking Pass.', async () => {
+    const dynamoClient = new DynamoDBClient({
+      region: REGION,
+      endpoint: ENDPOINT
+    });
     jest.mock('/opt/permissionLayer', () => {
       return {
         validateToken: jest.fn(event => {
@@ -605,10 +619,9 @@ describe('Pass Successes', () => {
     };
 
     // Put the hold pass in the DB first
-    await ddb
-      .put({
+    const params = {
         TableName: TABLE_NAME,
-        Item: {
+        Item: marshall({
           pk: 'pass::Test Park 1',
           sk: '1111111115',
           registrationNumber: '1111111115',
@@ -619,31 +632,31 @@ describe('Pass Successes', () => {
           numberOfGuests: 1,
           facilityType: 'Parking',
           mapLink: 'https://maps.google.com'
-        }
-      })
-      .promise();
+        })
+      }
+    await dynamoClient.send(new PutItemCommand(params))
 
     // Put the JWT in the table.
-    await ddb
-      .put({
+    const params2 = {
         TableName: TABLE_NAME,
-        Item: {
+        Item: marshall({
           sk: token,
           pk: 'jwt'
-        }
-      })
-      .promise();
+        })
+      }
+    await dynamoClient.send(new PutItemCommand(params2))
 
     const response = await writePassHandler.handler(event, null);
 
     // Remove the database item
-    await ddb.delete({
+    const params3 = {
       TableName: TABLE_NAME,
-      Key: {
+      Key: marshall({
         pk: 'pass::Test Park 1',
         sk: '1111111115'
-      }
-    }).promise();
+      })
+    }
+    await dynamoClient.send(new DeleteItemCommand(params3))
 
     expect(response.statusCode).toEqual(200);
     const body = JSON.parse(response.body);
@@ -845,24 +858,28 @@ describe('Pass Successes', () => {
   });
 });
 
-async function databaseOperation(version, mode) {
+async function databaseOperation(version, mode, TABLE_NAME) {
+  
+  const dynamoClient = new DynamoDBClient({
+    region: REGION,
+    endpoint: ENDPOINT
+  });
+  const passDate = DateTime.fromISO('2021-12-08T19:01:58.135Z').setZone('America/Vancouver');
   if (version === 1) {
     if (mode === 'setup') {
-      await ddb
-        .put({
+      const params = {
           TableName: TABLE_NAME,
-          Item: {
+          Item: marshall({
             pk: 'config',
             sk: 'config',
             ENVIRONMENT: 'test'
-          }
-        })
-        .promise();
-
-      await ddb
-        .put({
+          })
+        }
+      await dynamoClient.send(new PutItemCommand(params))
+      
+      const params2 = {
           TableName: TABLE_NAME,
-          Item: {
+          Item: marshall({
             pk: 'park',
             sk: 'Test Park 1',
             name: 'Test Park 1',
@@ -871,14 +888,13 @@ async function databaseOperation(version, mode) {
             mapLink: 'https://maps.google.com',
             status: 'open',
             visible: true
-          }
-        })
-        .promise();
+          })
+        }
+      await dynamoClient.send(new PutItemCommand(params2))
 
-      await ddb
-        .put({
+      const params3 = {
           TableName: TABLE_NAME,
-          Item: {
+          Item: marshall({
             pk: 'park',
             sk: '0015',
             name: '0015',
@@ -887,15 +903,14 @@ async function databaseOperation(version, mode) {
             mapLink: 'https://maps.google.com',
             status: 'open',
             visible: true
-          }
-        })
-        .promise();
+          })
+        }
+      await dynamoClient.send(new PutItemCommand(params3))
 
       // Example Pass
-      await ddb
-        .put({
+      const params4 = {
           TableName: TABLE_NAME,
-          Item: {
+          Item: marshall({
             pk: 'pass::0015',
             sk: '123456789',
             parkName: 'Test Park 1',
@@ -905,7 +920,7 @@ async function databaseOperation(version, mode) {
             searchLastName: 'last',
             facilityName: 'Parking lot A',
             email: 'noreply@gov.bc.ca',
-            date: new Date('2012-01-01'),
+            date: passDate.toUTC().toISO(),
             shortPassDate: '2012-01-01',
             type: 'DAY',
             registrationNumber: '123456789',
@@ -914,16 +929,15 @@ async function databaseOperation(version, mode) {
             phoneNumber: '5555555555',
             facilityType: 'Trail',
             isOverbooked: false,
-            creationDate: new Date('2012-01-01'),
-            dateUpdated: new Date('2012-01-01')
-          }
-        })
-        .promise();
-
-      await ddb
-        .put({
+            creationDate: passDate.toUTC().toISO(),
+            dateUpdated: passDate.toUTC().toISO()
+          })
+        }
+      await dynamoClient.send(new PutItemCommand(params4))
+     
+     const params5 = {
           TableName: TABLE_NAME,
-          Item: {
+          Item: marshall({
             pk: 'pass::0015',
             sk: '523456789',
             parkName: 'Test Park 1',
@@ -934,7 +948,7 @@ async function databaseOperation(version, mode) {
             searchLastName: 'last',
             facilityName: 'Parking lot A',
             email: 'noreply@gov.bc.ca',
-            date: new Date('2012-01-01'),
+            date: passDate.toUTC().toISO(),
             shortPassDate: '2012-01-01',
             type: 'DAY',
             registrationNumber: '123456789',
@@ -943,16 +957,15 @@ async function databaseOperation(version, mode) {
             phoneNumber: '5555555555',
             facilityType: 'Trail',
             isOverbooked: false,
-            creationDate: new Date('2012-01-01'),
-            dateUpdated: new Date('2012-01-01')
-          }
-        })
-        .promise();
+            creationDate: passDate.toUTC().toISO(),
+            dateUpdated: passDate.toUTC().toISO()
+          })
+        }
+      await dynamoClient.send(new PutItemCommand(params5))
 
-      await ddb
-        .put({
+      const params6 = {
           TableName: TABLE_NAME,
-          Item: {
+          Item: marshall({
             pk: 'facility::Test Park 1',
             parkOrcs: 'Test Park 1',
             facilityName: 'Parking lot A',
@@ -983,14 +996,13 @@ async function databaseOperation(version, mode) {
             bookableHolidays: [],
             status: { stateReason: '', state: 'open' },
             visible: true
-          }
-        })
-        .promise();
+          })
+        }
+      await dynamoClient.send(new PutItemCommand(params6))
 
-      await ddb
-        .put({
+     const params7 = {
           TableName: TABLE_NAME,
-          Item: {
+          Item: marshall({
             pk: 'facility::Test Park 1',
             sk: 'Parking lot B',
             parkOrcs: 'Test Park 1',
@@ -1020,14 +1032,13 @@ async function databaseOperation(version, mode) {
             bookableHolidays: [],
             status: { stateReason: '', state: 'open' },
             visible: true
-          }
-        })
-        .promise();
+          })
+        }
+      await dynamoClient.send(new PutItemCommand(params7))
 
-      await ddb
-        .put({
+      const params8 = {
           TableName: TABLE_NAME,
-          Item: {
+          Item: marshall({
             pk: 'facility::0015',
             sk: 'P1 and Lower P5',
             name: 'P1 and Lower P5',
@@ -1056,30 +1067,10 @@ async function databaseOperation(version, mode) {
             bookableHolidays: [],
             status: { stateReason: '', state: 'open' },
             visible: true
-          }
-        })
-        .promise();
-    } else {
-      console.log('Teardown');
-      // Teardown
-      await ddb
-        .delete({
-          TableName: TABLE_NAME,
-          Key: {
-            pk: 'park',
-            sk: 'Test Park 1'
-          }
-        })
-        .promise();
-      await ddb
-        .delete({
-          TableName: TABLE_NAME,
-          Key: {
-            pk: 'facility::Test Park 1',
-            sk: 'Parking lot A'
-          }
-        })
-        .promise();
-    }
+          })
+        }
+        await dynamoClient.send(new PutItemCommand(params8))
+    } 
+    
   }
 }

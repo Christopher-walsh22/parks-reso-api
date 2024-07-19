@@ -17,8 +17,8 @@ const MAX_TRANSACTION_SIZE = 25;
 async function createMetric(park, facility, date) {
   const today = DateTime.now().setZone(TIMEZONE);
   const currentDate = today.toISODate();
-
   let capacities = {};
+  
   // Get passes for park/facility/date DB:
   let hourlyData = [];
   const [passes, resObj] = await Promise.all([getPassesForDate(facility, date), getReservationObjectForDate(park.sk, facility.sk, date)]);

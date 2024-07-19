@@ -118,16 +118,13 @@ exports.handler = async (event, context) => {
         }),
       };
       logger.debug(putObject);
-      let res = null;
       try {
         let command = PutItemCommand(putObject);
-        res = await dynamoClient.send(command)
+        let res = await dynamoClient.send(command);
         // Check if there's already a report being generated.
         // If there are is no instance of a job or the job is 100% complete, generate a report.
         logger.debug("Creating a new export job.");
-
         await createJob(sk, permissionObject);
-
         return sendResponse(200, { status: "Export job created", sk: sk }, context);
       } catch (error) {
         // A job already exists.

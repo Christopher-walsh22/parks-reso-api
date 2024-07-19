@@ -3,15 +3,21 @@
 		"start": "sam local start-api --env-vars vars.json --debug",
 		"start-full": "yarn build && yarn start",
 		"build": "sam build",
-		"test": "export AWS_REGION=local-env && export TABLE_NAME=parksreso-test && yarn build && jest --coverage"
+		"test": "export AWS_REGION=local-env &&  yarn build && jest --coverage"
 	},
 	"jest": {
 		"verbose": true,
-		"globalSetup": "./__tests__/setup.js",
-		"globalTeardown": "./__tests__/teardown.js",
 		"modulePathIgnorePatterns": [
 			"<rootDir>/__tests__",
-			"<rootDir>/.aws-sam/"
+			"<rootDir>/.aws-sam/",
+			"<rootDir>/handlers/checkActivation/__tests__",
+			"<rootDir>/handlers/checkExpiry/__tests__",
+			"<rootDir>/handlers/readPass/__tests__",
+			"<rootDir>/handlers/updateParkName/__tests__",
+			"<rootDir>/handlers/writeFacility/__tests__",
+			"<rootDir>/handlers/sqsProcessor/__tests__",
+			"<rootDir>/handlers/writePass/__tests__",
+			"<rootDir>/handlers/writePark/__tests__"
 		],
 		"moduleNameMapper": {
 			"^/opt/baseLayer": "<rootDir>/.aws-sam/build/BaseLayer/baseLayer",
@@ -52,6 +58,8 @@
 		"@aws-sdk/client-dynamodb": "^3.44.0",
     	"@aws-sdk/client-s3": "^3.44.0",
     	"@aws-sdk/client-sqs": "^3.44.0",
-    	"@aws-sdk/client-lambda": "^3.44.0"
+    	"@aws-sdk/client-lambda": "^3.44.0",
+		"@aws-sdk/util-dynamodb": "^3.44.0"
+		
 	}
 }

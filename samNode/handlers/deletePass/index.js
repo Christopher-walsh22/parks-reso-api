@@ -58,6 +58,7 @@ exports.handler = async (event, context) => {
         },
         ExpressionAttributeValues: {
           ':cancelled': { S: PASS_CANCELLED_STATUS },
+          ':holdStatus': { S: PASS_HOLD_STATUS },
           ':dateUpdated': { S: currentTimeISO },
           ':empty_list': { "L": [] },  // For pass objects which do not have an audit property.
           ':audit_val': {
@@ -113,19 +114,16 @@ exports.handler = async (event, context) => {
         });
         logger.debug('updateReservationsObjQuery:', updateReservationsObjQuery);
       }
-
       logger.info('Transaction Object length:', transactionObj.length);
 
-
-      const command = new TransactWriteItemsCommand(transactionObj)
+      const command = new TransactWriteItemsCommand(transactionObj);
       const res = await dynamoClient.send(command);
-      logger.debug('res:', res);
+      logger.debug('response from Transaction:', res);
 
       // Prune audit
       delete passNoAuth.audit;
 
       logger.info("Delete Pass Complete.");
-
       return sendResponse(200, { msg: 'Cancelled', pass: passNoAuth }, context);
     } else if (event.queryStringParameters.passId && event.queryStringParameters.park) {
       // ADMIN
@@ -137,9 +135,7 @@ exports.handler = async (event, context) => {
       } else {
         // We need to lookup the pass to get the date & facility
         const pass = await getPass(event.queryStringParameters.park, event.queryStringParameters.passId);
-
         let transactionObj = { TransactItems: [] };
-
         // Check for a facility lock
         const facilityUpdateCheck = {
           TableName: TABLE_NAME,
@@ -194,8 +190,8 @@ exports.handler = async (event, context) => {
         transactionObj.TransactItems.push({
           Update: updatePassQuery
         });
-        logger.debug('updatePassQuery:', updatePassQuery);
 
+        logger.debug('updatePassQuery:', updatePassQuery);
         const dateselector = DateTime.fromISO(pass.date).setZone(TIMEZONE).toISODate();
         logger.debug('dateselector', dateselector);
 
@@ -224,13 +220,11 @@ exports.handler = async (event, context) => {
         }
 
         logger.info("Transaction Object Length:", transactionObj.length);
-
-       
         const command = new TransactWriteItemsCommand(transactionObj);
+        
         const res = await dynamoClient.send(command);
-        logger.debug('res:', res);
+        logger.debug("Response from admin Transaction: ", res);
 
-        logger.info("transactWriteItems Complete:");
         return sendResponse(200, { msg: 'Cancelled', pass: pass }, context);
       }
     } else {

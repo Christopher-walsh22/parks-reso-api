@@ -64,6 +64,7 @@ exports.handler = async (event, context) => {
   }
 
   try {
+    console.log("in the handler for test")
     const token = await decodeJWT(event);
     const permissionObject = resolvePermissions(token);
 

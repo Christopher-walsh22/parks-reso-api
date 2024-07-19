@@ -1,5 +1,5 @@
 const { ExpectedAttributeValueFilterSensitiveLog } = require('@aws-sdk/client-dynamodb');
-
+ 
 describe('SQS Processor Tests', () => {
   const OLD_ENV = process.env;
   beforeEach(async () => {
@@ -14,14 +14,14 @@ describe('SQS Processor Tests', () => {
 
   test('returns {} when noting passed in', async () => {
     const handler = require('../index');
-
+    console.log("This test should pass properly")
     const res = await handler.handler(null);
     expect(res).toEqual({});
   });
 
   test('returns {} when event passed in, but records empty', async () => {
     const handler = require('../index');
-
+    console.log("This test should pass properly")
     const res = await handler.handler({});
     expect(res).toEqual({});
   });
@@ -30,25 +30,16 @@ describe('SQS Processor Tests', () => {
     const axios = require('axios');
     jest.mock("axios");
     axios.post.mockImplementation(() => Promise.resolve({ data: {} }));
-
     const handler = require('../index');
 
     const res = await handler.handler({
       Records: [{
-        'messageAttributes': {
-          'email_address': {
-            'stringValue': 'foo@example.com'
-          },
-          'service': {
-            'stringValue': 'GCN'
-          },
-          'template_id': {
-            'stringValue': 'someID'
-          },
-          'personalisation': {
-            'stringValue': '{ "id": 1234 }'
-          }
-        }
+        body: JSON.stringify({
+          email_address: 'foo@example.com',
+          service: 'GCN',
+          template_id: 'someID',
+          personalisation: { id: "1234" }
+        })
       }]
     });
     expect(res).toEqual({});

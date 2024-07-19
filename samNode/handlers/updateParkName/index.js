@@ -12,17 +12,14 @@ const { getCurrentDisplayNameById } = require('/opt/dataRegisterLayer');
 exports.handler = async (event, context) => {
   logger.info('Updating current park names.');
   try {
-
     // get all parks in the system.
     const parks = await getParks();
-
     for (const park of parks) {
       const currentName = await getCurrentDisplayNameById(park.orcs);
       if (currentName !== park.name) {
         await updateDisplayName(park, currentName);
       }
     }
-
     return sendResponse(200, {}, context)
   } catch (err) {
     logger.error(err);
@@ -31,9 +28,7 @@ exports.handler = async (event, context) => {
 }
 
 async function updateDisplayName(park, newName) {
-
   const oldName = park.name;
-
   try {
     // update park name
     const updatePark = {

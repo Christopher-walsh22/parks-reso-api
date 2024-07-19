@@ -25,7 +25,6 @@ const { getPassesByStatus,
   
       for (pass of passes) {
         // NOTE: Pass dates are stored in UTC.
-  
         // If it is beyond 6pm (18:00 PST/PDT), move every active pass to expired.
         if (currentPSTDateTime.hour >= 18) {
           logger.debug("Expiring:", pass);
@@ -61,7 +60,7 @@ const { getPassesByStatus,
       return sendResponse(200, {}, context);
     } catch (err) {
       logger.error(err);
-      // TODO: Notification to RC.
+      // TODO: Notification to Teams,
       return sendResponse(500, {}, context);
     }
   };

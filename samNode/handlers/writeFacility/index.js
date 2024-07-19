@@ -33,11 +33,9 @@ exports.handler = async (event, context) => {
     return sendResponse(403, { msg: 'Unauthorized' }, context);
   }
 
-
   try {
     logger.debug(event.body);
     const obj = JSON.parse(event.body);
-
     try {
       await getParkAccess(obj.parkOrcs, permissionObject);
     } catch (error) {

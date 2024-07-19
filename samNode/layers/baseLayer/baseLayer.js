@@ -1,16 +1,14 @@
-// dynamoUtils Vars
-
 const { ScanCommand,
   QueryCommand,
   transactWriteItems,
   TransactWriteItemsCommand,
   TransactWriteCommand,
-  DynamoDB,
   DeleteItemCommand,
   PutItemCommand,
   DynamoDBClient,
   UpdateItemCommand,
-  GetItemCommand } = require('@aws-sdk/client-dynamodb');
+  GetItemCommand, 
+  } = require('@aws-sdk/client-dynamodb'); 
 const { Lambda } = require('@aws-sdk/client-lambda');
 const { S3Client, GetObjectCommand, S3 } = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
@@ -22,16 +20,16 @@ const TABLE_NAME = process.env.TABLE_NAME || 'ParksDUP';
 const META_TABLE_NAME = process.env.META_TABLE_NAME || 'ParksMetaDUP';
 const METRICS_TABLE_NAME = process.env.METRICS_TABLE_NAME || 'ParksMetricsDUP';
 const AWSREGION = process.env.AWSREGION || "ca-central-1";
-const DYNAMODB_ENDPOINT_URL = process.env.DYNAMODB_ENDPOINT_URL || "https://dynamodb.ca-central-1.amazonaws.com"
+const DYNAMODB_ENDPOINT_URL = process.env.DYNAMODB_ENDPOINT_URL || "http://172.17.0.2:8000"
 const options = {
   region: AWSREGION,
   endpoint: DYNAMODB_ENDPOINT_URL
 };
 const IS_OFFLINE = process.env.IS_OFFLINE || false
-// if (IS_OFFLINE === true) {
-//   // If offline point at local
-//   options.endpoint = 'http://172.17.0.2:8000';
-// } 
+if (IS_OFFLINE === "True") {
+  // If offline point to your local dynamo endpoint
+   options.endpoint = 'http://172.17.0.2:8000';
+} 
 
 const ACTIVE_STATUS = 'active';
 const RESERVED_STATUS = 'reserved';
@@ -49,8 +47,13 @@ const PASS_TYPE_EXPIRY_HOURS = {
   DAY: 0
 };
 const DEFAULT_BOOKING_DAYS_AHEAD = 3;
-const dynamodb = new DynamoDB(options);
+
+//Create AWS Utils
 const dynamoClient = new DynamoDBClient(options)
+const sqsClient = new SQSClient({region: AWSREGION})
+const s3Client = new S3Client({region: AWSREGION});
+const lambda = new Lambda(options);
+const invoke = lambda.invoke
 
 // loggerUtil vars
 const { createLogger, format, transports } = require('winston');
@@ -99,7 +102,7 @@ async function setStatus(passes, status) {
       },
       UpdateExpression: 'SET passStatus = :statusValue, audit = list_append(if_not_exists(audit, :empty_list), :audit_val), dateUpdated = :dateUpdated',
       ReturnValues: 'ALL_NEW',
-      TableName: TABLE_NAME
+      TableName: process.env.TABLE_NAME
     };
     const command = new UpdateItemCommand(updateParams);
     const res = await dynamoClient.send(command);
@@ -107,14 +110,13 @@ async function setStatus(passes, status) {
   }
 }
 
-// simple way to return a single Item by primary key.
 async function getOne(pk, sk) {
   logger.info(`getItem: { pk: ${pk}, sk: ${sk} }`);
   const params = {
-    TableName: TABLE_NAME,
+    TableName: process.env.TABLE_NAME,
     Key: marshall({ pk, sk })
   };
-  const command = new GetItemCommand(params)
+  const command = new GetItemCommand(params);
   let item = await dynamoClient.send(command);
   
   return item?.Item || {};
@@ -129,6 +131,7 @@ async function runQuery(query, paginated = false) {
   let pageData = [];
   let page = 0;
   const command = new QueryCommand(query);
+ 
   do {
     page++;
     if (pageData?.LastEvaluatedKey) {
@@ -206,18 +209,10 @@ async function getConfig() {
 async function getPark(sk, authenticated = false) {
   try {
     const park = await getOne('park', sk);
-  
-
     if (!authenticated && !park.visible) {
       return {}; // Return empty object if park is not visible and user is not authenticated
     }
-    
-    // Unmarshall the park object
-
-    const unmarshalledPark = unmarshall(park);
-
-
-    return unmarshalledPark;
+    return unmarshall(park);
 
   } catch (error) {
     throw error; // Handle or propagate the error as needed
@@ -226,7 +221,7 @@ async function getPark(sk, authenticated = false) {
 
 async function getParks() {
   const parksQuery = {
-    TableName: TABLE_NAME,
+    TableName: process.env.TABLE_NAME,
     KeyConditionExpression: 'pk = :pk',
     ExpressionAttributeValues: {
       ':pk': { S: 'park' }
@@ -247,7 +242,7 @@ async function getFacility(parkSk, sk, authenticated = false) {
 
 async function getFacilities(parkSk) {
   const facilitiesQuery = {
-    TableName: TABLE_NAME,
+    TableName: process.env.TABLE_NAME,
     KeyConditionExpression: 'pk = :pk',
     ExpressionAttributeValues: {
       ':pk': { S: `facility::${parkSk}` }
@@ -272,9 +267,8 @@ const expressionBuilder = function (operator, existingExpression, newFilterExpre
  */
 async function getPassesByStatus(status, filterExpression = undefined) {
   logger.info(`Loading passes`, filterExpression);
-
   const passesQuery = {
-    TableName: TABLE_NAME,
+    TableName: process.env.TABLE_NAME,
     KeyConditionExpression: 'passStatus = :activeStatus',
     IndexName: 'passStatus-index'
   };
@@ -299,13 +293,21 @@ async function getPassesByStatus(status, filterExpression = undefined) {
   // Grab all the results, don't skip any.
   let results = [];
   let passData;
-  do {
-    passData = await runQuery(passesQuery, true);
-    passData.data.forEach((item) => results.push(item));
-    passesQuery.ExclusiveStartKey = passData.LastEvaluatedKey;
-  } while (typeof passData.LastEvaluatedKey !== "undefined");
 
-  return results;
+  try{
+    do {
+      passData = await runQuery(passesQuery, true);
+      passData.data.forEach((item) => results.push(item));
+      passesQuery.ExclusiveStartKey = passData.LastEvaluatedKey;
+    } while (typeof passData.LastEvaluatedKey !== "undefined");
+
+    return results;
+  }catch(error){
+    console.log("Passes querry: ", passesQuery)
+    console.log(process.env.TABLE_NAME)
+    console.log("Failing in the do while: ", error)
+    console.log("PassData", passData)
+  }
 }
 
 /**
@@ -365,7 +367,7 @@ function visibleFilter(queryObj, isAdmin) {
  */
 async function checkPassExists(facilityName, email, type, bookingPSTShortDate) {
   const existingPassCheckObject = {
-    TableName: TABLE_NAME,
+    TableName: process.env.TABLE_NAME,
     IndexName: 'shortPassDate-index',
     KeyConditionExpression: 'shortPassDate = :shortPassDate AND facilityName = :facilityName',
     FilterExpression: 'email = :email AND #type = :type AND passStatus IN (:reserved, :active)',
@@ -425,7 +427,7 @@ async function checkPassExists(facilityName, email, type, bookingPSTShortDate) {
  */
 async function convertPassToReserved(decodedToken, passStatus, firstName, lastName, email, phoneNumber) {
   const updateParams = {
-    TableName: TABLE_NAME,
+    TableName: process.env.TABLE_NAME,
     Key: {
       pk: { S: `pass::${decodedToken.parkOrcs}` },
       sk: { S: decodedToken.registrationNumber }
@@ -482,9 +484,9 @@ async function getAllStoredJWTs(expired = false) { //optional if expired or all 
   const currentTime = Math.floor(Date.now() / 1000);
   let params;
   if (expired) {
-    // If expired parameter is true only get the expired jwtss
+    // If expired parameter is true only get the expired jwts
     params = {
-      TableName: TABLE_NAME,
+      TableName: process.env.TABLE_NAME,
       KeyConditionExpression: 'pk = :pk',
       FilterExpression: 'expiration < :expiration',
       ExpressionAttributeValues: {
@@ -495,7 +497,7 @@ async function getAllStoredJWTs(expired = false) { //optional if expired or all 
   } else {
     // get all jwt if not looking for expired (same as before)
     params = {
-      TableName: TABLE_NAME,
+      TableName: process.env.TABLE_NAME,
       KeyConditionExpression: 'pk = :pk',
       ExpressionAttributeValues: {
         ':pk': { S: 'jwt' },
@@ -538,20 +540,10 @@ async function getAllStoredJWTs(expired = false) { //optional if expired or all 
 async function restoreAvailablePass(pk, sk, orcNumber, shortPassDate, facilityName, numberOfGuests, type, passPk, passSk){
   try{
     // Add the number of guests back to the available passes, and delete the reservation jwt.
-
-    console.log("PK PASS IN", pk)
-    console.log("SK PASS IN", sk)
-    console.log("orcNumber PASS IN", orcNumber)
-    console.log("shortPassDate PASS IN", shortPassDate)
-    console.log("facilityName PASS IN", facilityName)
-    console.log("numberOfGuests PASS IN", numberOfGuests)
-    console.log("type PASS IN", type)
-    console.log("passPK PASS IN", passPk)
-    console.log("passSK PASS IN", passSk)
     const transactionParams = {
       TransactItems: [{
         Update: {
-        TableName: TABLE_NAME,
+        TableName: process.env.TABLE_NAME,
         Key: {
           pk: { S: `reservations::${orcNumber}::${facilityName}` },
           sk: { S: shortPassDate }
@@ -569,7 +561,7 @@ async function restoreAvailablePass(pk, sk, orcNumber, shortPassDate, facilityNa
       },
         {
           Delete: {
-            TableName: TABLE_NAME,
+            TableName: process.env.TABLE_NAME,
             Key: {
               pk: { S: pk },
               sk: { S: sk }
@@ -580,7 +572,7 @@ async function restoreAvailablePass(pk, sk, orcNumber, shortPassDate, facilityNa
         ,
         {
           Delete: {
-            TableName: TABLE_NAME,
+            TableName: process.env.TABLE_NAME,
             Key: {
               pk: { S: passPk },
               sk: { S: passSk }
@@ -589,18 +581,14 @@ async function restoreAvailablePass(pk, sk, orcNumber, shortPassDate, facilityNa
           }
         }]
     };
-    console.log("PARAMS FOR THE TRANSACTIONL:::::::: ", JSON.stringify(transactionParams, 3, 0))
-    const command = new TransactWriteItemsCommand(transactionParams)
-    console.log("Command about to be send to dynamoClient In restore passes", command)
-    res = dynamoClient.send(command);
+    const command = new TransactWriteItemsCommand(transactionParams);
+    res = await dynamoClient.send(command);
     logger.info(`added: ${numberOfGuests} back to ${facilityName}`);
   } catch (error) {
-    console.log("Res from failing delete: ", res)
     logger.error('Error updating available passes:', error);
     throw new CustomError('Error updating pass', error);
   }
 }
-// End of dynamoUtils
 
 // responseUtils
 const sendResponse = function (code, data, context) {
@@ -623,7 +611,7 @@ const sendResponse = function (code, data, context) {
  * @returns {boolean} - True if the event is a warmup event, false otherwise.
  */
 const checkWarmup = function (event) {
-  if (event?.warmup === true || event.httpMethod === 'OPTIONS') {
+  if (event?.warmup === true || event?.httpMethod === 'OPTIONS') {
     return true;
   } else {
     return false;
@@ -639,7 +627,6 @@ const CustomError = function (message, statusCode) {
   this.message = message;
   this.statusCode = statusCode;
 }
-// End of responseUtils
 
 // loggerUtils
 const logger = createLogger({
@@ -658,13 +645,7 @@ const logger = createLogger({
   transports: [new transports.Console()]
 });
 
-// const unmarshall = AWS.DynamoDB.Converter.unmarshall
-// const marshall = AWS.DynamoDB.Converter.marshall
-// const AWSinput = AWS.DynamoDB.Converter.input
-const sqsClient = new SQSClient({region: AWSREGION})
-const s3Client = new S3Client({region: AWSREGION});
-const lambda = new Lambda(options);
-const invoke = lambda.invoke
+
 module.exports = {
   // Constants
   ACTIVE_STATUS,
@@ -706,10 +687,10 @@ module.exports = {
   checkWarmup,
   logger,
   CustomError,
-  
+  DateTime,
   // AWS Services
   dynamoClient,
-  sqsClient, // Assuming sqs is imported elsewhere
+  sqsClient,
   SendMessageCommand,
   unmarshall,
   marshall,
@@ -724,7 +705,7 @@ module.exports = {
   DeleteItemCommand,
   UpdateItemCommand,
   PutItemCommand,
-  //luxon
-  DateTime
+  DynamoDBClient,
+  GetItemCommand
 };
   

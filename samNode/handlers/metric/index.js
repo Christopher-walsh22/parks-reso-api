@@ -6,10 +6,6 @@ exports.handler = async (event, context) => {
   logger.debug('Metric', event);
   logger.debug('event.queryStringParameters', event.queryStringParameters);
 
-  let queryObj = {
-    TableName: TABLE_NAME
-  };
-
   try {
     if (!event.queryStringParameters) {
       logger.info("Invalid Request");

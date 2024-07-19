@@ -49,7 +49,6 @@ exports.handler = async (event, context) => {
       if (event.queryStringParameters.date) {
         // Use GSI on manualLookupif date is provided
         const shortDate = DateTime.fromISO(event.queryStringParameters.date).toISODate();
-
         queryObj.ExpressionAttributeValues = {};
         queryObj.IndexName = 'manualLookup-index';
         queryObj.ExpressionAttributeValues[':shortPassDate'] = { S: shortDate };
@@ -145,7 +144,6 @@ exports.handler = async (event, context) => {
 
       // Filter overbooked status
       queryObj = checkOverbooked(event.queryStringParameters.overbooked, queryObj);
-
       queryObj = paginationHandler(queryObj, event);
       const passData = await runQuery(queryObj, true);
       logger.info('Returning Results:', passData.length);
@@ -185,7 +183,6 @@ exports.handler = async (event, context) => {
         };
         logger.info("Signing JWT");
         const token = jwt.sign(claims, process.env.JWT_SECRET, { expiresIn: '15m', algorithm: ALGORITHM });
-
         const cancellationLink =
           process.env.PUBLIC_FRONTEND +
           process.env.PASS_CANCELLATION_ROUTE +

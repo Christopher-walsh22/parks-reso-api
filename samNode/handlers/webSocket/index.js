@@ -39,7 +39,6 @@ async function onMessage(event) {
   console.log(`Received socket message from: ${event.requestContext.connectionId}`);
 
   const body = JSON.parse(event.body);
-  console.log(body);
 
   // Find the conection ID in memory pool
   const result = connections.has(event.requestContext.connectionId);

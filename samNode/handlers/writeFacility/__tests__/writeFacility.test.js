@@ -1,13 +1,13 @@
-const { DocumentClient } = require('aws-sdk/clients/dynamodb');
+
 const jwt = require('jsonwebtoken');
-const { REGION, ENDPOINT, TABLE_NAME } = require('../../../__tests__/settings');
+const { REGION, ENDPOINT } = require('../../../__tests__/settings');
+const { createDB, deleteDB, getHashedText } = require('../../../__tests__/setup.js');
+const { marshall } = require('@aws-sdk/util-dynamodb');
+const { DynamoDBClient, GetItemCommand, PutItemCommand } = require("@aws-sdk/client-dynamodb");
+const { unmarshall } = require("@aws-sdk/util-dynamodb");
+
 const ALGORITHM = process.env.ALGORITHM || "HS384";
 
-const ddb = new DocumentClient({
-  region: REGION,
-  endpoint: ENDPOINT,
-  convertEmptyValues: true
-});
 
 const mockedSysadmin = {
   decodeJWT: jest.fn((event) => {
@@ -44,6 +44,23 @@ const mockedRegularUser = {
 const token = jwt.sign({ foo: 'bar' }, 'shhhhh', { algorithm: ALGORITHM });
 
 describe('WriteFacility General', () => {
+  const OLD_ENV = process.env.TABLE_NAME;
+  let hash
+  let TABLE_NAME
+  beforeEach(async()=>{
+    jest.resetModules();
+    hash = getHashedText(expect.getState().currentTestName);
+    process.env.TABLE_NAME = hash
+    TABLE_NAME = process.env.TABLE_NAME
+    await createDB(hash)
+    await databaseOperation(1, 'setup', TABLE_NAME);
+  });
+
+  afterEach(async () => {
+    await deleteDB(process.env.TABLE_NAME);
+    process.env.TABLE_NAME = OLD_ENV; // Restore old environment
+  });
+
   test('Handler - 403 Unauthorized - nothing passed in', async () => {
     const writeFacilityHandler = require('../index');
     expect(await writeFacilityHandler.handler(null, null)).toMatchObject({
@@ -137,19 +154,21 @@ describe('WriteFacility General', () => {
 });
 
 describe('Facility Access', () => {
-  const OLD_ENV = process.env;
-  beforeEach(async () => {
+  const OLD_ENV = process.env.TABLE_NAME;
+  let hash
+  let TABLE_NAME
+  beforeEach(async()=>{
     jest.resetModules();
-    process.env = { ...OLD_ENV }; // Make a copy of environment
-    await databaseOperation(1, 'setup');
-  });
-
-  afterAll(() => {
-    process.env = OLD_ENV; // Restore old environment
+    hash = getHashedText(expect.getState().currentTestName);
+    process.env.TABLE_NAME = hash
+    TABLE_NAME = process.env.TABLE_NAME
+    await createDB(hash)
+    await databaseOperation(1, 'setup', TABLE_NAME);
   });
 
   afterEach(async () => {
-    await databaseOperation(1, 'teardown');
+    await deleteDB(process.env.TABLE_NAME);
+    process.env.TABLE_NAME = OLD_ENV; // Restore old environment
   });
 
   test('POST fails - 403 - Not an admin', async () => {
@@ -177,6 +196,12 @@ describe('Facility Access', () => {
     jest.mock('/opt/permissionLayer', () => {
       return mockedSysadmin;
     });
+
+    const dynamoClient = new DynamoDBClient({
+      region: REGION,
+      endpoint: ENDPOINT
+    });
+
     const handler = require('../index');
     const event = {
       headers: {
@@ -217,22 +242,28 @@ describe('Facility Access', () => {
     expect(response.statusCode).toEqual(200);
     const body = JSON.parse(response.body);
     expect(body).toBeDefined()
-    let params = {
+    const params =  {
       TableName: TABLE_NAME,
-      Key: {
+      Key: marshall({
         pk: 'facility::0011',
         sk: 'P1 and Lower P5'
-      }
+      })
     }
-
-    let dbRes = await ddb.get(params).promise();
-    expect(dbRes.Item?.qrcode).toEqual(true);
+    const res = await dynamoClient.send(new GetItemCommand(params))
+    const dbRes = unmarshall(res.Item);
+    expect(dbRes.qrcode).toEqual(true);
   });
 
   test('QR Codes enabled on update', async () => {
     jest.mock('/opt/permissionLayer', () => {
       return mockedSysadmin;
     });
+
+    const dynamoClient = new DynamoDBClient({
+      region: REGION,
+      endpoint: ENDPOINT
+    });
+
     const handler = require('../index');
     const event = {
       headers: {
@@ -276,24 +307,27 @@ describe('Facility Access', () => {
     const body = JSON.parse(response.body);
     let params = {
       TableName: TABLE_NAME,
-      Key: {
+      Key: marshall({
         pk: 'facility::0010',
         sk: 'P1 and Lower P5'
-      }
+      })
     }
-
-    let dbRes = await ddb.get(params).promise();
-    expect(dbRes.Item?.qrcode).toEqual(false);
+    const res = await dynamoClient.send(new GetItemCommand(params))
+    const dbRes = unmarshall(res.Item)
+    expect(dbRes.qrcode).toEqual(false);
   });
 });
 
-async function databaseOperation(version, mode) {
+async function databaseOperation(version, mode, TABLE_NAME) {
+  const dynamoClient = new DynamoDBClient({
+    region: REGION,
+    endpoint: ENDPOINT
+  });
   if (version === 1) {
     if (mode === 'setup') {
-      await ddb
-        .put({
+     const params = {
           TableName: TABLE_NAME,
-          Item: {
+          Item: marshall({
             pk: 'facility::0010',
             sk: 'P1 and Lower P5',
             parkOrcs: '0015',
@@ -323,35 +357,33 @@ async function databaseOperation(version, mode) {
             bookableHolidays: [],
             status: { stateReason: '', state: 'open' },
             visible: true
-          }
-        })
-        .promise();
-    } else {
-      console.log('Teardown');
-      // Teardown
-      await ddb
-        .delete({
-          TableName: TABLE_NAME,
-          Key: {
-            pk: 'facility::0010',
-            sk: 'P1 and Lower P5'
-          }
-        })
-        .promise();
-      await ddb
-        .delete({
-          TableName: TABLE_NAME,
-          Key: {
-            pk: 'facility::0011',
-            sk: 'P1 and Lower P5'
-          }
-        })
-        .promise();
+          })
+        }
+    await dynamoClient.send(new PutItemCommand(params))
     }
   }
 }
 
 describe('ParkAccess', () => {
+
+  const OLD_ENV = process.env.TABLE_NAME;
+  let hash
+  let TABLE_NAME
+  beforeEach(async()=>{
+    jest.resetModules();
+    hash = getHashedText(expect.getState().currentTestName);
+    process.env.TABLE_NAME = hash
+    TABLE_NAME = process.env.TABLE_NAME
+    await createDB(hash)
+    await databaseOperation(1, 'setup', TABLE_NAME);
+  });
+
+  afterEach(async () => {
+    await deleteDB(process.env.TABLE_NAME);
+    process.env.TABLE_NAME = OLD_ENV; // Restore old environment
+  });
+
+  
   test('GET fails General - 403 - Unauthorized', async () => {
     const writeFacilityHandler = require('../index');
     expect(await writeFacilityHandler.handler(null, null)).toMatchObject({

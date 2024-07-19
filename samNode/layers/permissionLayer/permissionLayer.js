@@ -138,12 +138,9 @@ function verifySecret(tokenString, secret, callback, sendError) {
     // check if the JWT was verified correctly
     if (verificationError == null && decodedToken && decodedToken.resource_access["parking-pass"].roles) {
       logger.debug('JWT decoded');
-
       logger.debug('decoded token:', decodedToken);
-
       logger.debug('decodedToken.iss', decodedToken.iss);
       logger.debug('decodedToken roles', decodedToken.resource_access["parking-pass"].roles);
-
       logger.debug('SSO_ISSUER', SSO_ISSUER);
 
       // check if the issuer matches
@@ -186,7 +183,7 @@ exports.resolvePermissions = function (token) {
   let roles = ['public'];
   let isAdmin = false;
   let isAuthenticated = false;
-
+  
   try {
     logger.debug(JSON.stringify(token.data));
     roles = token.data.resource_access['parking-pass'].roles;

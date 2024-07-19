@@ -6,13 +6,11 @@ const { DateTime } = require('luxon');
 exports.handler = async (event, context) => {
   logger.debug('Read Reservation', event);
   logger.debug('event.queryStringParameters', event.queryStringParameters);
-
   try {
-
     if (event?.httpMethod === 'OPTIONS') {
       return sendResponse(200, {}, context);
     }
-    
+
     if (!event.queryStringParameters || !event.queryStringParameters.park || !event.queryStringParameters.facility) {
       return sendResponse(400, { msg: 'Invalid Request' }, context);
     }
@@ -39,11 +37,9 @@ exports.handler = async (event, context) => {
       } else {
         logger.info('**AUTHENTICATED, NOT SYSADMIN**');
         let parkObj = await getPark(park, true);
-
         // Check roles.
         logger.debug('Roles:', permissionObject.roles);
         parkObj = await roleFilter([parkObj], permissionObject.roles);
-
         // If user does not have correct park role, then they are not authorized.
         if (parkObj.length < 1) {
           return sendResponse(403, { msg: 'Unauthorized' }, context);

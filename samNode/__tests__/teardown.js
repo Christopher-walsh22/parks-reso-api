@@ -1,19 +1,19 @@
-const AWS = require('aws-sdk');
-
+const { DynamoDBClient, DeleteTableCommand } = require('@aws-sdk/client-dynamodb');
 const { REGION, ENDPOINT, TABLE_NAME } = require('./settings');
 
 module.exports = async () => {
-  dynamoDb = new AWS.DynamoDB({
+  dynamoDb = new DynamoDBClient({
     region: REGION,
     endpoint: ENDPOINT
   });
 
   try {
-    await dynamoDb
-      .deleteTable({
+
+    const params = {
         TableName: TABLE_NAME
-      })
-      .promise();
+      }
+      const deleteTableCommand = new DeleteTableCommand(params);
+      dynamoDb.send(deleteTableCommand);
   } catch (err) {
     console.log(err);
   }
