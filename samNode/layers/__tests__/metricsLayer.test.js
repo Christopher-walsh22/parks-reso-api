@@ -301,12 +301,14 @@ describe('Metrics post', () => {
   beforeEach(async () => {
     jest.resetModules();
     hash = getHashedText(expect.getState().currentTestName);
-    hash = hash.length > 200 ? hash.substring(0, 200) : hash;
-    hash = hash.replace(/[^\w\-\.]/g, '');
+    // hash = hash.length > 200 ? hash.substring(0, 200) : hash;
+    // hash = hash.replace(/[^\w\-\.]/g, '');
     process.env.TABLE_NAME = hash
     TABLE_NAME = process.env.TABLE_NAME
+    //There is no such thing as a metrics table in test
+    process.env.METRICS_TABLE_NAME = TABLE_NAME;
     await createDB(hash)
-    await databaseOperation(1, 'setup', process.env.TABLE_NAME);
+    await databaseOperation(process.env.TABLE_NAME);
   });
 
   afterEach(async () => {
@@ -321,8 +323,13 @@ describe('Metrics post', () => {
 
   test('Post all metrics', async () => {
     const { postAllMetrics } = require('../metricsLayer/metricsLayer');
+    const dynamoClient = new DynamoDBClient({
+      region: REGION,
+      endpoint: ENDPOINT
+    });
     const res = await postAllMetrics(newMetricsList);
     // Three new metrics were created
+    console.log(res)
     expect(res).toEqual(3);
     const dates = [today, tomorrow, yesterday];
     for (const date of dates) {
@@ -353,7 +360,6 @@ async function databaseOperation(TABLE_NAME) {
         TableName: TABLE_NAME,
         Item: marshall(mockPark)
       }
-      console.log("TABLE NAME::: ", TABLE_NAME)
       await dynamoClient.send(new PutItemCommand(params))
 
       const params2 = {

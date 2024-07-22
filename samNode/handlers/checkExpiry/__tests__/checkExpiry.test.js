@@ -2,7 +2,7 @@ const MockDate = require('mockdate');
 const { DateTime } = require('luxon');
 
 const { DynamoDBClient, PutItemCommand, GetItemCommand } = require('@aws-sdk/client-dynamodb');
-const { unmarshall } = require("@aws-sdk/util-dynamodb");
+const { unmarshall, marshall } = require("@aws-sdk/util-dynamodb");
 const checkExpiry = require('../index');
 const { createDB, deleteDB, getHashedText } = require('../../../__tests__/setup.js');
 const { REGION, ENDPOINT } = require('../../../__tests__/settings');
@@ -16,32 +16,32 @@ async function setupDb(TABLE_NAME) {
 
   const params = {
       TableName: TABLE_NAME,
-      Item: {
-        pk: {S: 'park'},
-        sk: {S: 'Test Park'},
-        name: {S: 'Test Park'},
-        description: {S: 'x'},
-        bcParksLink: {S: 'x'},
-        status: {S: 'open'},
-        visible: {BOOL: true}
-      }
+      Item: marshall({
+        pk: 'park',
+        sk: 'Test Park',
+        name: 'Test Park',
+        description: 'x',
+        bcParksLink: 'x',
+        status: 'open',
+        visible: true
+      })
     }
   await dynamoClient.send(new PutItemCommand(params));
  
 
   const param2 = {
       TableName: TABLE_NAME,
-      Item: {
-        pk: {S: 'facility::Test Park'},
-        sk: {S: 'Parking Lot A'},
-        name: {S: 'Parking Lot A'},
-        description: {S: 'x'},
-        bcParksLink: {S: 'x'},
-        status: {S: 'open'},
-        visible: {BOOL: true},
-        qrcode: {BOOL: true},
-        type: {S: 'parking'}
-      }
+      Item: marshall({
+        pk: 'facility::Test Park',
+        sk: 'Parking Lot A',
+        name: 'Parking Lot A',
+        description: 'x',
+        bcParksLink: 'x',
+        status: 'open',
+        visible: true,
+        qrcode: true,
+        type: 'parking'
+      })
     }
     await dynamoClient.send(new PutItemCommand(param2))
 }
@@ -74,18 +74,17 @@ describe('checkExpiryHandler', () => {
     const passDate = DateTime.fromISO('2021-12-08T20:00:00.000Z');
     const params = {
         TableName: TABLE_NAME,
-        Item: {
-          pk: {S: 'pass::Test Park'},
-          sk: {S: sk},
-          facilityName: {S: 'Parking Lot A'},
-          type: {S: passType},
-          registrationNumber: {S: sk},
-          passStatus: {S: 'active'},
-          date: {S: passDate.toISO()}
-        }
+        Item: marshall({
+          pk: 'pass::Test Park',
+          sk: sk,
+          facilityName: 'Parking Lot A',
+          type: passType,
+          registrationNumber: sk,
+          passStatus: 'active',
+          date: passDate.toISO()
+        })
       }
     await dynamoClient.send(new PutItemCommand(params))
-
     MockDate.set(new Date('2021-12-19T00:00:00.000Z'));
     await checkExpiry.handler(null, {});
     MockDate.reset();
@@ -110,15 +109,15 @@ describe('checkExpiryHandler', () => {
     })
     const params = {
         TableName: TABLE_NAME,
-        Item: {
-          pk: {S: 'pass::Test Park'},
-          sk: {S: sk},
-          facilityName: {S: 'Parking Lot A'},
-          type: {S: passType},
-          registrationNumber: {S: sk},
-          passStatus: {S: 'active'},
-          date: {S: passDate.toISO()}
-        }
+        Item: marshall({
+          pk: 'pass::Test Park',
+          sk: sk,
+          facilityName: 'Parking Lot A',
+          type: passType,
+          registrationNumber: sk,
+          passStatus: 'active',
+          date: passDate.toISO()
+        })
       }
     
     await dynamoClient.send(new PutItemCommand(params))
@@ -148,15 +147,15 @@ describe('checkExpiryHandler', () => {
     })
     const params = {
         TableName: TABLE_NAME,
-        Item: {
-          pk: {S: 'pass::Test Park'},
-          sk: {S: sk},
-          facilityName: {S: 'Parking Lot A'},
-          type: {S: passType},
-          registrationNumber: {S: sk},
-          passStatus: {S: 'active'},
-          date: {S: passDate.toISO()}
-        }
+        Item: marshall({
+          pk: 'pass::Test Park',
+          sk: sk,
+          facilityName: 'Parking Lot A',
+          type: passType,
+          registrationNumber: sk,
+          passStatus: 'active',
+          date: passDate.toISO()
+        })
       }
     await dynamoClient.send(new PutItemCommand(params))
     MockDate.set(new Date('2021-12-09T03:00:00.000Z'));
@@ -183,15 +182,15 @@ describe('checkExpiryHandler', () => {
     })
     const params = {
         TableName: TABLE_NAME,
-        Item: {
-          pk: {S: 'pass::Test Park'},
-          sk: {S: '123456715'},
-          facilityName: {S: 'Parking Lot A'},
-          type: {S: 'AM'},
-          registrationNumber: {S: '123456715'},
-          passStatus: {S: 'active'},
-          date: {S: passDate.toISO()}
-        }
+        Item: marshall({
+          pk: 'pass::Test Park',
+          sk: '123456715',
+          facilityName: 'Parking Lot A',
+          type: 'AM',
+          registrationNumber: '123456715',
+          passStatus: 'active',
+          date: passDate.toISO()
+        })
       }
     
     await dynamoClient.send(new PutItemCommand(params))
@@ -220,15 +219,15 @@ describe('checkExpiryHandler', () => {
     })
     const params = {
         TableName: TABLE_NAME,
-        Item: {
-          pk: {S: 'pass::Test Park'},
-          sk: {S: '123456716'},
-          facilityName: {S: 'Parking Lot A'},
-          type: {S: 'AM'},
-          registrationNumber: {S: '123456716'},
-          passStatus: {S: 'active'},
-          date: {S: passDate.toISO()}
-        }
+        Item: marshall({
+          pk: 'pass::Test Park',
+          sk: '123456716',
+          facilityName: 'Parking Lot A',
+          type: 'AM',
+          registrationNumber: '123456716',
+          passStatus: 'active',
+          date: passDate.toISO()
+        })
       }
     await dynamoClient.send(new PutItemCommand(params));
 

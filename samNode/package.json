@@ -9,15 +9,7 @@
 		"verbose": true,
 		"modulePathIgnorePatterns": [
 			"<rootDir>/__tests__",
-			"<rootDir>/.aws-sam/",
-			"<rootDir>/handlers/checkActivation/__tests__",
-			"<rootDir>/handlers/checkExpiry/__tests__",
-			"<rootDir>/handlers/readPass/__tests__",
-			"<rootDir>/handlers/updateParkName/__tests__",
-			"<rootDir>/handlers/writeFacility/__tests__",
-			"<rootDir>/handlers/sqsProcessor/__tests__",
-			"<rootDir>/handlers/writePass/__tests__",
-			"<rootDir>/handlers/writePark/__tests__"
+			"<rootDir>/.aws-sam/"
 		],
 		"moduleNameMapper": {
 			"^/opt/baseLayer": "<rootDir>/.aws-sam/build/BaseLayer/baseLayer",

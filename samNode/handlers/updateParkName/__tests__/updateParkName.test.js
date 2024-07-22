@@ -10,18 +10,14 @@ const mockDataRegistryUtils = {
       return 'New Park 1 Name';
     }
     return 'Old Park 2 Name';
-
   })
 }
 
 async function setupDb(TABLE_NAME) {
-
-  console.log("Setting up the DB ")
   const dynamoClient = new DynamoDBClient({
     region: REGION,
     endpoint: ENDPOINT
   });
-
   const param = {
       TableName: TABLE_NAME,
       Item: marshall({
@@ -35,7 +31,7 @@ async function setupDb(TABLE_NAME) {
         visible: true
       })
   }
-  await dynamoClient.send(new PutItemCommand(param))
+  await dynamoClient.send(new PutItemCommand(param));
 
   const param2 = {
       TableName: TABLE_NAME,
@@ -50,7 +46,7 @@ async function setupDb(TABLE_NAME) {
         visible: true
       })
     }
-  await dynamoClient.send(new PutItemCommand(param2))
+  await dynamoClient.send(new PutItemCommand(param2));
 }
 
 describe('updateParkNameHandler', () => {
@@ -64,10 +60,10 @@ describe('updateParkNameHandler', () => {
   beforeEach(async () => {
     jest.resetModules();
     hash = getHashedText(expect.getState().currentTestName);
-    process.env.TABLE_NAME = hash
+    process.env.TABLE_NAME = hash;
     TABLE_NAME = process.env.TABLE_NAME
-    await createDB(hash)
-    await setupDb(hash)
+    await createDB(hash);
+    await setupDb(hash);
   })
 
   afterEach(async () => {
@@ -86,7 +82,6 @@ describe('updateParkNameHandler', () => {
 
     const updateParkName = require('../index');
     await updateParkName.handler(null, {});
-
     const params = {
       TableName: TABLE_NAME,
       Key: marshall({
@@ -94,8 +89,9 @@ describe('updateParkNameHandler', () => {
         sk: 'MOC1',
       })
     }
-    const res1 = await dynamoClient.send(new GetItemCommand(params))
-    const test1 = unmarshall(res1.Item)
+    const res1 = await dynamoClient.send(new GetItemCommand(params));
+    const test1 = unmarshall(res1.Item);
+    
     const params2 = {
       TableName: TABLE_NAME,
       Key: marshall({
@@ -103,9 +99,8 @@ describe('updateParkNameHandler', () => {
         sk: 'MOC2',
       })
     }
-    const res2 = await dynamoClient.send(new GetItemCommand(params2))
-    const test2 = unmarshall(res2.Item)
-
+    const res2 = await dynamoClient.send(new GetItemCommand(params2));
+    const test2 = unmarshall(res2.Item);
     expect(test1.name).toEqual('New Park 1 Name');
     expect(test2.name).toEqual('Old Park 2 Name');
   });

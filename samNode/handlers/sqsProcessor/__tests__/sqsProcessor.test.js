@@ -1,5 +1,3 @@
-const { ExpectedAttributeValueFilterSensitiveLog } = require('@aws-sdk/client-dynamodb');
- 
 describe('SQS Processor Tests', () => {
   const OLD_ENV = process.env;
   beforeEach(async () => {

@@ -20,12 +20,9 @@ exports.handler = async (event, context) => {
     `(${DateTime.now().toISO()})`
   );
   try {
-    console.log("Table name at start of the handler: ", process.env.TABLE_NAME)
     const currentPSTDateTime = DateTime.now().setZone(TIMEZONE);
     const endOfPSTDayUTCDateTime = currentPSTDateTime.endOf('day').toUTC();
-
     logger.debug("Checking against date:", endOfPSTDayUTCDateTime.toISO());
-
     const filter = {
       FilterExpression: '#theDate <= :theDate',
       ExpressionAttributeValues: {
@@ -37,9 +34,7 @@ exports.handler = async (event, context) => {
     };
 
     logger.debug("Getting passes by status:", RESERVED_STATUS, filter);
-    console.log("About to get passes")
     const passes = await getPassesByStatus(RESERVED_STATUS, filter);
-    console.log("Table name after get passes: ", process.env.TABLE_NAME)
     logger.info("Reserved Passes:", passes.length);
 
     // Query the passStatus-index for passStatus = 'reserved'
@@ -67,12 +62,10 @@ exports.handler = async (event, context) => {
 
     //here now
     const parks = await getParks();
-    console.log("Got the parks? ", parks)
     logger.info("Getting facilities");
     for (let i = 0; i < parks.length; i++) {
       const results = await getFacilities(parks[i].sk);
       facilities = facilities.concat(results);
-      console.log("Got facilities???", facilities)
     }
 
     // For each pass determine if we're in the AM/DAY for that pass or the PM.  Push into active
@@ -108,7 +101,6 @@ exports.handler = async (event, context) => {
       } else if (isAM === false && pass.type === PASS_TYPE_PM) {
         passesToActiveStatus.push(pass);
       }
-
       // If we added an item to passesToActiveStatus that was date < begginingOfToday, set to expired, woops!
       if (passPSTDateTime < startDayPSTDateTime){
         // Prune from the active list

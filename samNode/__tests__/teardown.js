@@ -8,7 +8,6 @@ module.exports = async () => {
   });
 
   try {
-
     const params = {
         TableName: TABLE_NAME
       }
