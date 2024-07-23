@@ -1,10 +1,10 @@
 {
-    "name": "dup-api-reservation-layer",
-    "version": "1.0.0",
-    "author": "Digitalspace <contact@digitalspace.ca>",
-    "license": "MIT",
-    "dependencies": {
-      "luxon": "^3.2.1"
+  "name": "dup-api-reservation-layer",
+  "version": "1.0.0",
+  "author": "Digitalspace <contact@digitalspace.ca>",
+  "license": "MIT",
+  "dependencies": {
+    "luxon": "^3.2.1"
   },
   "scripts": {
     "test": "mocha tests/unit/"
