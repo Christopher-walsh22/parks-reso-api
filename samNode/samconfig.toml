@@ -4,10 +4,10 @@ version = 0.1
 
 [default]
 [default.global.parameters]
-stack_name = "samNode"
+stack_name = "dup-api"
 
 [default.build.parameters]
-cached = true
+cached = false
 parallel = true
 
 [default.validate.parameters]
@@ -17,6 +17,9 @@ lint = true
 capabilities = "CAPABILITY_IAM"
 confirm_changeset = true
 resolve_s3 = true
+s3_prefix = "dup-api"
+region = "ca-central-1"
+image_repositories = []
 
 [default.package.parameters]
 resolve_s3 = true
