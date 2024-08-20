@@ -63,6 +63,7 @@ resource "aws_lambda_function" "writePassLambda" {
     variables = {
       TABLE_NAME                            = aws_dynamodb_table.park_dup_table.name,
       SQSQUEUENAME                          = aws_sqs_queue.gcn_email_queue.url,
+      SQSEXPIRY_QUEUE                       = aws_sqs_queue.expiry_queue.url,
       JWT_SECRET                            = local.jwtSecret.jwtSecret,
       PUBLIC_FRONTEND                       = data.aws_ssm_parameter.public_url.value,
       ADMIN_FRONTEND                        = data.aws_ssm_parameter.admin_url.value,
@@ -72,6 +73,7 @@ resource "aws_lambda_function" "writePassLambda" {
       PASS_CANCELLATION_ROUTE               = data.aws_ssm_parameter.pass_cancellation_route.value,
       SSO_ISSUER                            = data.aws_ssm_parameter.sso_issuer.value,
       SSO_JWKSURI                           = data.aws_ssm_parameter.sso_jwksuri.value,
+      CF_SECRET_KEY                         = data.aws_ssm_parameter.cf_secret_key.value,
       LOG_LEVEL                             = "debug"
     }
   }

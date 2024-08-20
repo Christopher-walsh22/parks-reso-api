@@ -2,7 +2,7 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "3.46.0"
+      version = "3.76.1"
     }
   }
 }
@@ -173,9 +173,6 @@ resource "aws_api_gateway_deployment" "apideploy" {
     aws_api_gateway_integration.readFacilityIntegration,
     aws_api_gateway_integration.writeFacilityIntegration,
     aws_api_gateway_integration.putFacilityIntegration,
-    aws_api_gateway_integration.generateCaptchaIntegration,
-    aws_api_gateway_integration.captchaVerifyIntegration,
-    aws_api_gateway_integration.captchaAudioIntegration,
     aws_api_gateway_integration.readReservationIntegration,
     aws_api_gateway_integration.putModifierIntegration,
     aws_api_gateway_integration.metricsIntegration
